@@ -15,8 +15,18 @@ export async function connectToChain(endpoint?: string): Promise<ApiPromise> {
   const wsEndpoint = endpoint || BITTENSOR_CONFIG.WEB_SOCKET_ARCHIVE_MENTATMINDS_FALLBACK;
   console.log(`Connecting to Bittensor chain at ${wsEndpoint}...`);
 
+  // Configure provider with better error handling
   const provider = new WsProvider(wsEndpoint);
-  api = await ApiPromise.create({ provider });
+  
+  // Suppress verbose WebSocket logs
+  provider.on('error', () => {
+    // Silently handle connection errors to avoid console spam
+  });
+
+  api = await ApiPromise.create({ 
+    provider,
+    noInitWarn: true, // Suppress initialization warnings
+  });
 
   console.log('✓ Connected to Bittensor chain');
   return api;
@@ -50,8 +60,8 @@ export async function getFreeBalances(coldkeys: string[]): Promise<Map<string, n
   
   const balances = new Map<string, number>();
   
-  // Batch queries in chunks to avoid overwhelming the node
-  const BATCH_SIZE = 100;
+  // Batch queries in smaller chunks to avoid overwhelming the node
+  const BATCH_SIZE = 50; // Reduced from 100 to be gentler on the node
   for (let i = 0; i < coldkeys.length; i += BATCH_SIZE) {
     const batch = coldkeys.slice(i, i + BATCH_SIZE);
     
@@ -65,6 +75,11 @@ export async function getFreeBalances(coldkeys: string[]): Promise<Map<string, n
     });
     
     console.log(`  Processed ${Math.min(i + BATCH_SIZE, coldkeys.length)}/${coldkeys.length} coldkeys`);
+    
+    // Add small delay between batches to avoid overwhelming the node
+    if (i + BATCH_SIZE < coldkeys.length) {
+      await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
+    }
   }
   
   console.log('✓ Free balances fetched');

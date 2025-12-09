@@ -15,7 +15,7 @@ export async function getAllStakeBalances(): Promise<StakeBalance[]> {
   
   const response = await fetch(url, {
     headers: {
-      'Authorization': `Bearer ${API_KEY}`,
+      'Authorization': API_KEY,
       'Content-Type': 'application/json',
     },
   });
@@ -38,7 +38,7 @@ export async function getStakeBalanceByColdkey(coldkey: string): Promise<StakeBa
   
   const response = await fetch(url, {
     headers: {
-      'Authorization': `Bearer ${API_KEY}`,
+      'Authorization': API_KEY,
       'Content-Type': 'application/json',
     },
   });
