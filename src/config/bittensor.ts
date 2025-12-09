@@ -14,6 +14,7 @@ export const BITTENSOR_CONFIG = {
 
   // Taostat API
   TAOSTAT_API_URL: process.env.TAOSTAT_API_URL || 'https://api.taostats.io',
+  TAOSTAT_API_KEY: process.env.TAOSTAT_API_KEY || '',
 
   // Block parameters
   BLOCKS_PER_DAY: parseInt(process.env.BLOCKS_PER_DAY || '7200', 10),

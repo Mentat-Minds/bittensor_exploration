@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/index.ts",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "test:setup": "ts-node src/scripts/testSetup.ts",
+    "analyze:alpha": "ts-node src/scripts/analyzeAlpha.ts"
   },
   "keywords": [
     "bittensor",
