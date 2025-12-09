@@ -1,6 +1,6 @@
 // Alpha holders analysis
 import type { StakeBalance, AlphaHolderAnalysis, AlphaHolding } from '../types';
-import { getAllStakeBalances } from '../services/taostats';
+import { getAllStakeBalances, getAllLiquidityPositions } from '../services/taostats';
 import { connectToChain, getFreeBalances, disconnectFromChain } from '../services/bittensor';
 
 // Subnet names mapping (Greek alphabet for subnets 1-24, etc.)
@@ -45,15 +45,19 @@ export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
   // Step 1: Fetch all stakes from Taostats
   const allStakes = await getAllStakeBalances();
   
-  // Step 2: Separate alpha stakes from TAO stakes
+  // Step 2: Fetch all liquidity positions
+  const allLiquidityPositions = await getAllLiquidityPositions();
+  
+  // Step 3: Separate alpha stakes from TAO stakes
   const alphaStakes = allStakes.filter(s => s.netuid > 0);
   const taoStakes = allStakes.filter(s => s.netuid === 0);
   
-  console.log(`\nStake distribution:`);
+  console.log(`\nData distribution:`);
   console.log(`  - Alpha stakes: ${alphaStakes.length}`);
   console.log(`  - TAO stakes (root): ${taoStakes.length}`);
+  console.log(`  - Liquidity positions: ${allLiquidityPositions.length}`);
   
-  // Step 3: Group by coldkey
+  // Step 4: Group stakes by coldkey
   const coldkeyStakes = new Map<string, StakeBalance[]>();
   
   for (const stake of allStakes) {
@@ -64,12 +68,37 @@ export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
     coldkeyStakes.get(ck)!.push(stake);
   }
   
-  // Step 4: Filter coldkeys that have alpha
-  const coldkeysWithAlpha = Array.from(coldkeyStakes.entries())
-    .filter(([_, stakes]) => stakes.some(s => s.netuid > 0))
-    .map(([ck, _]) => ck);
+  // Step 5: Group liquidity positions by coldkey
+  const coldkeyLiquidityPositions = new Map<string, any[]>();
   
-  console.log(`\n✓ Found ${coldkeysWithAlpha.length} unique coldkeys with alpha holdings`);
+  for (const position of allLiquidityPositions) {
+    const ck = position.coldkey.ss58;
+    if (!coldkeyLiquidityPositions.has(ck)) {
+      coldkeyLiquidityPositions.set(ck, []);
+    }
+    coldkeyLiquidityPositions.get(ck)!.push(position);
+  }
+  
+  // Step 6: Combine all coldkeys with either stakes or liquidity positions in alpha
+  const allColdkeys = new Set<string>();
+  
+  // Add coldkeys with alpha stakes
+  for (const [ck, stakes] of coldkeyStakes.entries()) {
+    if (stakes.some(s => s.netuid > 0)) {
+      allColdkeys.add(ck);
+    }
+  }
+  
+  // Add coldkeys with liquidity positions in alpha subnets
+  for (const [ck, positions] of coldkeyLiquidityPositions.entries()) {
+    if (positions.some(p => p.netuid > 0 && (Number(p.alpha) > 0 || Number(p.tao) > 0))) {
+      allColdkeys.add(ck);
+    }
+  }
+  
+  const coldkeysWithAlpha = Array.from(allColdkeys);
+  
+  console.log(`\n✓ Found ${coldkeysWithAlpha.length} unique coldkeys with alpha holdings (stakes + liquidity)`);
   
   // Step 5: Connect to chain and get free balances
   await connectToChain();
@@ -81,23 +110,65 @@ export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
   const analyses: AlphaHolderAnalysis[] = [];
   
   for (const coldkey of coldkeysWithAlpha) {
-    const stakes = coldkeyStakes.get(coldkey)!;
+    const stakes = coldkeyStakes.get(coldkey) || [];
+    const liquidityPositions = coldkeyLiquidityPositions.get(coldkey) || [];
+    
     const alphaStakesForCk = stakes.filter(s => s.netuid > 0);
     const taoStakesForCk = stakes.filter(s => s.netuid === 0);
     
-    // Calculate alpha holdings
-    const alphaHoldings: AlphaHolding[] = alphaStakesForCk.map(stake => {
+    // Group alpha holdings by netuid (combining stakes + liquidity)
+    const alphaHoldingsByNetuid = new Map<number, AlphaHolding>();
+    
+    // Add staked alpha
+    for (const stake of alphaStakesForCk) {
+      const netuid = stake.netuid;
       const balanceAlpha = Number(stake.balance) / 1e9;
       const valueTao = Number(stake.balance_as_tao) / 1e9;
       
-      return {
-        netuid: stake.netuid,
-        subnet_name: getSubnetName(stake.netuid),
-        balance_alpha: balanceAlpha,
-        value_tao: valueTao,
-        percentage_of_portfolio: 0, // Will calculate after we have total
-      };
-    });
+      if (!alphaHoldingsByNetuid.has(netuid)) {
+        alphaHoldingsByNetuid.set(netuid, {
+          netuid,
+          subnet_name: getSubnetName(netuid),
+          balance_alpha: 0,
+          value_tao: 0,
+          percentage_of_portfolio: 0,
+        });
+      }
+      
+      const holding = alphaHoldingsByNetuid.get(netuid)!;
+      holding.balance_alpha += balanceAlpha;
+      holding.value_tao += valueTao;
+    }
+    
+    // Add liquidity positions alpha
+    for (const position of liquidityPositions) {
+      if (position.netuid === 0) continue; // Skip root liquidity
+      
+      const netuid = position.netuid;
+      const alphaInPosition = Number(position.alpha) / 1e9;
+      
+      // For liquidity positions, we need to estimate the TAO value
+      // Using the alpha amount directly as value (simplified, should use price)
+      // The position also has 'liquidity' field which represents total value
+      const totalLiquidity = Number(position.liquidity) / 1e9;
+      
+      if (!alphaHoldingsByNetuid.has(netuid)) {
+        alphaHoldingsByNetuid.set(netuid, {
+          netuid,
+          subnet_name: getSubnetName(netuid),
+          balance_alpha: 0,
+          value_tao: 0,
+          percentage_of_portfolio: 0,
+        });
+      }
+      
+      const holding = alphaHoldingsByNetuid.get(netuid)!;
+      holding.balance_alpha += alphaInPosition;
+      // Use the liquidity value as TAO equivalent (represents total position value)
+      holding.value_tao += totalLiquidity;
+    }
+    
+    const alphaHoldings: AlphaHolding[] = Array.from(alphaHoldingsByNetuid.values());
     
     // Calculate totals
     const totalAlphaValueTao = alphaHoldings.reduce((sum, h) => sum + h.value_tao, 0);
@@ -143,8 +214,9 @@ export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
  * Display analysis results
  */
 export function displayResults(analyses: AlphaHolderAnalysis[], limit: number = 20): void {
-  console.log('\n=== TOP ALPHA HOLDERS ===\n');
+  console.log('\n=== TOP ALPHA HOLDERS (Stakes + Liquidity) ===\n');
   console.log(`Showing top ${Math.min(limit, analyses.length)} of ${analyses.length} alpha holders\n`);
+  console.log(`Note: Alpha holdings include both staked alpha and alpha in liquidity pools\n`);
   
   analyses.slice(0, limit).forEach((analysis, idx) => {
     console.log(`\n${idx + 1}. Coldkey: ${analysis.coldkey}`);

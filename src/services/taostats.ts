@@ -93,3 +93,63 @@ export async function getStakeBalanceByColdkey(coldkey: string): Promise<StakeBa
   
   return (Array.isArray(data) ? data : []) as StakeBalance[];
 }
+
+/**
+ * Fetch all liquidity positions from Taostats API
+ */
+export async function getAllLiquidityPositions(): Promise<any[]> {
+  console.log('Fetching all liquidity positions from Taostats API...');
+  
+  const allPositions: any[] = [];
+  
+  // Fetch liquidity positions for all subnets
+  const MAX_NETUID = 100;
+  const netuids = Array.from({ length: MAX_NETUID + 1 }, (_, i) => i);
+  
+  console.log(`Fetching liquidity positions for netuids 0-${MAX_NETUID}...`);
+  
+  const BATCH_SIZE = 10;
+  for (let i = 0; i < netuids.length; i += BATCH_SIZE) {
+    const batch = netuids.slice(i, i + BATCH_SIZE);
+    
+    const batchPromises = batch.map(async (netuid) => {
+      try {
+        const url = `${API_URL}/api/dtao/liquidity/position/v1?netuid=${netuid}&limit=10000`;
+        
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': API_KEY,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) return [];
+          throw new Error(`Taostats API error for netuid ${netuid}: ${response.status}`);
+        }
+
+        const responseData = await response.json() as any;
+        const data = responseData.data || responseData;
+        
+        if (Array.isArray(data) && data.length > 0) {
+          console.log(`  Netuid ${netuid}: ${data.length} liquidity positions`);
+          return data;
+        }
+        return [];
+      } catch (error: any) {
+        if (error.message.includes('404')) return [];
+        console.warn(`  Warning for netuid ${netuid}:`, error.message);
+        return [];
+      }
+    });
+    
+    const batchResults = await Promise.all(batchPromises);
+    batchResults.forEach(positions => allPositions.push(...positions));
+    
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }
+  
+  console.log(`✓ Fetched ${allPositions.length} total liquidity positions`);
+  
+  return allPositions;
+}
