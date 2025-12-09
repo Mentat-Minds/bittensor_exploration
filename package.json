@@ -1,0 +1,28 @@
+{
+  "name": "bittensor_exploration",
+  "version": "0.1.0",
+  "description": "Bittensor exploration and analysis project",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "bittensor",
+    "tao",
+    "blockchain",
+    "analysis"
+  ],
+  "author": "Mentat Minds",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@polkadot/api": "^10.11.2",
+    "dotenv": "^16.3.1"
+  }
+}
