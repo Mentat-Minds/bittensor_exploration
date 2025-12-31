@@ -1,7 +1,8 @@
 // Alpha holders analysis
-import type { StakeBalance, AlphaHolderAnalysis, AlphaHolding } from '../types';
-import { getAllStakeBalances, getAllLiquidityPositions } from '../services/taostats';
-import { connectToChain, getFreeBalances, disconnectFromChain } from '../services/bittensor';
+import type { StakeBalance, AlphaHolderAnalysis, AlphaHolding, ColdkeyClassification } from '../types';
+import { getAllStakeBalances, getStakeUnstakeCountsBatch } from '../services/taostats';
+import { connectToChain, getFreeBalances, getStakingProxies, disconnectFromChain } from '../services/bittensor';
+import { fetchAllMetagraphs, classifyColdkeys } from '../services/walletClassification';
 
 // Subnet names mapping (Greek alphabet for subnets 1-24, etc.)
 const SUBNET_NAMES: Record<number, string> = {
@@ -42,11 +43,14 @@ function getSubnetName(netuid: number): string {
 export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
   console.log('\n=== Starting Alpha Holders Analysis ===\n');
 
-  // Step 1: Fetch all stakes from Taostats
+  // Step 1: Fetch wallet classifications from metagraph data
+  console.log('Step 1: Fetching metagraph data for wallet classification...\n');
+  const metagraphsBySubnet = await fetchAllMetagraphs();
+  const coldkeyClassifications = classifyColdkeys(metagraphsBySubnet);
+
+  // Step 2: Fetch all stakes from Taostats
+  console.log('\nStep 2: Fetching stake balances...\n');
   const allStakes = await getAllStakeBalances();
-  
-  // Step 2: Fetch all liquidity positions
-  const allLiquidityPositions = await getAllLiquidityPositions();
   
   // Step 3: Separate alpha stakes from TAO stakes
   const alphaStakes = allStakes.filter(s => s.netuid > 0);
@@ -55,7 +59,6 @@ export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
   console.log(`\nData distribution:`);
   console.log(`  - Alpha stakes: ${alphaStakes.length}`);
   console.log(`  - TAO stakes (root): ${taoStakes.length}`);
-  console.log(`  - Liquidity positions: ${allLiquidityPositions.length}`);
   
   // Step 4: Group stakes by coldkey
   const coldkeyStakes = new Map<string, StakeBalance[]>();
@@ -68,18 +71,7 @@ export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
     coldkeyStakes.get(ck)!.push(stake);
   }
   
-  // Step 5: Group liquidity positions by coldkey
-  const coldkeyLiquidityPositions = new Map<string, any[]>();
-  
-  for (const position of allLiquidityPositions) {
-    const ck = position.coldkey.ss58;
-    if (!coldkeyLiquidityPositions.has(ck)) {
-      coldkeyLiquidityPositions.set(ck, []);
-    }
-    coldkeyLiquidityPositions.get(ck)!.push(position);
-  }
-  
-  // Step 6: Combine all coldkeys with either stakes or liquidity positions in alpha
+  // Step 5: Get all coldkeys with alpha stakes
   const allColdkeys = new Set<string>();
   
   // Add coldkeys with alpha stakes
@@ -89,20 +81,21 @@ export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
     }
   }
   
-  // Add coldkeys with liquidity positions in alpha subnets
-  for (const [ck, positions] of coldkeyLiquidityPositions.entries()) {
-    if (positions.some(p => p.netuid > 0 && (Number(p.alpha) > 0 || Number(p.tao) > 0))) {
-      allColdkeys.add(ck);
-    }
-  }
-  
   const coldkeysWithAlpha = Array.from(allColdkeys);
   
-  console.log(`\n✓ Found ${coldkeysWithAlpha.length} unique coldkeys with alpha holdings (stakes + liquidity)`);
+  console.log(`\n✓ Found ${coldkeysWithAlpha.length} unique coldkeys with alpha holdings (stakes only)`);
   
-  // Step 5: Connect to chain and get free balances
+  // Step 5: Fetch stake/unstake transaction counts (last 50 days)
+  console.log('\nStep 5: Fetching transaction counts...\n');
+  const txCounts = await getStakeUnstakeCountsBatch(coldkeysWithAlpha, 50);
+  
+  // Step 6: Connect to chain and get free balances
+  console.log('\nStep 6: Connecting to chain and fetching balances...\n');
   await connectToChain();
   const freeBalances = await getFreeBalances(coldkeysWithAlpha);
+  
+  // Step 6b: Check for staking proxies
+  const stakingProxies = await getStakingProxies(coldkeysWithAlpha);
   
   // Step 6: Calculate analysis for each coldkey
   console.log('\n=== Calculating portfolio metrics ===\n');
@@ -111,12 +104,11 @@ export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
   
   for (const coldkey of coldkeysWithAlpha) {
     const stakes = coldkeyStakes.get(coldkey) || [];
-    const liquidityPositions = coldkeyLiquidityPositions.get(coldkey) || [];
     
     const alphaStakesForCk = stakes.filter(s => s.netuid > 0);
     const taoStakesForCk = stakes.filter(s => s.netuid === 0);
     
-    // Group alpha holdings by netuid (combining stakes + liquidity)
+    // Group alpha holdings by netuid (stakes only)
     const alphaHoldingsByNetuid = new Map<number, AlphaHolding>();
     
     // Add staked alpha
@@ -140,34 +132,6 @@ export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
       holding.value_tao += valueTao;
     }
     
-    // Add liquidity positions alpha
-    for (const position of liquidityPositions) {
-      if (position.netuid === 0) continue; // Skip root liquidity
-      
-      const netuid = position.netuid;
-      const alphaInPosition = Number(position.alpha) / 1e9;
-      
-      // For liquidity positions, we need to estimate the TAO value
-      // Using the alpha amount directly as value (simplified, should use price)
-      // The position also has 'liquidity' field which represents total value
-      const totalLiquidity = Number(position.liquidity) / 1e9;
-      
-      if (!alphaHoldingsByNetuid.has(netuid)) {
-        alphaHoldingsByNetuid.set(netuid, {
-          netuid,
-          subnet_name: getSubnetName(netuid),
-          balance_alpha: 0,
-          value_tao: 0,
-          percentage_of_portfolio: 0,
-        });
-      }
-      
-      const holding = alphaHoldingsByNetuid.get(netuid)!;
-      holding.balance_alpha += alphaInPosition;
-      // Use the liquidity value as TAO equivalent (represents total position value)
-      holding.value_tao += totalLiquidity;
-    }
-    
     const alphaHoldings: AlphaHolding[] = Array.from(alphaHoldingsByNetuid.values());
     
     // Calculate totals
@@ -187,8 +151,17 @@ export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
       ? (totalAlphaValueTao / totalWalletValueTao) * 100 
       : 0;
     
+    // Get classification for this coldkey
+    const classification = coldkeyClassifications.get(coldkey);
+    const roles = classification?.roles || ['Investor'];
+    
+    // Check if has staking proxy
+    const hasStakingProxy = stakingProxies.get(coldkey) || false;
+    
     analyses.push({
       coldkey,
+      roles,
+      has_staking_proxy: hasStakingProxy,
       total_alpha_value_tao: totalAlphaValueTao,
       unique_alpha_tokens: new Set(alphaHoldings.map(h => h.netuid)).size,
       alpha_holdings: alphaHoldings.sort((a, b) => b.value_tao - a.value_tao),
@@ -196,6 +169,7 @@ export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
       free_tao: freeTao,
       total_wallet_value_tao: totalWalletValueTao,
       alpha_percentage: alphaPercentage,
+      number_tx: txCounts.get(coldkey) || 0,
     });
   }
   

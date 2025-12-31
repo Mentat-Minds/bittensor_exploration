@@ -87,6 +87,63 @@ export async function getFreeBalances(coldkeys: string[]): Promise<Map<string, n
 }
 
 /**
+ * Check if a coldkey has a staking proxy set
+ */
+export async function hasStakingProxy(coldkey: string): Promise<boolean> {
+  if (!api) {
+    throw new Error('Not connected to chain. Call connectToChain() first.');
+  }
+
+  const proxies = await api.query.proxy.proxies(coldkey);
+  const proxiesData = proxies.toJSON() as any;
+  
+  // proxiesData is an array [proxies[], deposit]
+  const proxyList = proxiesData[0] || [];
+  
+  // Check if any proxy has type 'Staking'
+  return proxyList.some((proxy: any) => proxy.proxyType === 'Staking');
+}
+
+/**
+ * Check staking proxy for multiple coldkeys (batched)
+ */
+export async function getStakingProxies(coldkeys: string[]): Promise<Map<string, boolean>> {
+  if (!api) {
+    throw new Error('Not connected to chain. Call connectToChain() first.');
+  }
+
+  console.log(`Querying staking proxies for ${coldkeys.length} coldkeys...`);
+  
+  const proxiesMap = new Map<string, boolean>();
+  
+  // Batch queries in smaller chunks
+  const BATCH_SIZE = 50;
+  for (let i = 0; i < coldkeys.length; i += BATCH_SIZE) {
+    const batch = coldkeys.slice(i, i + BATCH_SIZE);
+    
+    const queries = batch.map(ck => api!.query.proxy.proxies(ck));
+    const results = await Promise.all(queries);
+    
+    results.forEach((proxies, idx) => {
+      const proxiesData = proxies.toJSON() as any;
+      const proxyList = proxiesData[0] || [];
+      const hasStaking = proxyList.some((proxy: any) => proxy.proxyType === 'Staking');
+      proxiesMap.set(batch[idx], hasStaking);
+    });
+    
+    console.log(`  Processed ${Math.min(i + BATCH_SIZE, coldkeys.length)}/${coldkeys.length} coldkeys`);
+    
+    // Add small delay between batches
+    if (i + BATCH_SIZE < coldkeys.length) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+  
+  console.log('✓ Staking proxies fetched');
+  return proxiesMap;
+}
+
+/**
  * Disconnect from chain
  */
 export async function disconnectFromChain(): Promise<void> {
