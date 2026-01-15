@@ -1,827 +1,759 @@
-"""
-Bittensor Alpha Holders Dashboard
-Comprehensive analysis of alpha token holders
-"""
-
 import streamlit as st
 import pandas as pd
+import json
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-import json
 from typing import Dict, List
 
-# ═══════════════════════════════════════════════════════════════════
-# COLOR PALETTES - Custom Red/Violet Theme
-# ═══════════════════════════════════════════════════════════════════
-
-# Palette principale du frontend
-BRAND_COLORS = {
-    'primary_blue': '#282AE6',      # Bleu principal
-    'light_violet': '#C7A4FF',      # Violet clair
-    'dark_violet': '#212278',       # Violet foncé
-    'sky_blue': '#62B0FF',          # Bleu ciel
-    'red_orange': '#FF502E',        # Rouge/orange
-    'light_gray_violet': '#B2B2CB', # Gris-violet clair
-    'medium_gray_violet': '#7F7FA9',# Gris-violet moyen
-    'very_light_blue': '#E3F1FF',   # Bleu très clair
-    'very_light_violet': '#F9F5FF'  # Violet très clair
-}
-
-COLOR_PALETTES = {
-    # Token count categories - Dégradé bleu/violet
-    'token_count': {
-        '1 token': '#FF502E',      # Rouge-orange (accent)
-        '2-5 tokens': '#62B0FF',   # Bleu ciel
-        '6-10 tokens': '#C7A4FF',  # Violet clair
-        '10+ tokens': '#282AE6'    # Bleu principal
-    },
-    # Alpha percentage categories - Gradient rouge → violet
-    'alpha_percentage': {
-        '0-25%': '#B2B2CB',        # Gris-violet (faible)
-        '25-50%': '#FF502E',       # Rouge-orange
-        '50-95%': '#62B0FF',       # Bleu ciel
-        '95-100%': '#282AE6'       # Bleu principal (très fort)
-    },
-    # Wallet value categories - Gradient clair → foncé
-    'wallet_value': {
-        '< 10 TAO': '#F9F5FF',     # Violet très clair
-        '10-100 TAO': '#E3F1FF',   # Bleu très clair
-        '100-1K TAO': '#62B0FF',   # Bleu ciel
-        '1K-10K TAO': '#C7A4FF',   # Violet clair
-        '10K+ TAO': '#FF502E'      # Rouge-orange (accent)
-    },
-    # Transaction categories - Gradient progressif
-    'tx_count': {
-        '0 tx': '#F9F5FF',         # Violet très clair
-        '1-10 tx': '#E3F1FF',      # Bleu très clair
-        '10-50 tx': '#62B0FF',     # Bleu ciel
-        '50-100 tx': '#C7A4FF',    # Violet clair
-        '100+ tx': '#FF502E'       # Rouge-orange (très actif)
-    }
-}
-
-# Configuration de la page
+# Page configuration
 st.set_page_config(
     page_title="Bittensor Alpha Holders Analysis",
-    page_icon="🔗",
+    page_icon="🔷",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Style CSS personnalisé - Thème Rouge/Violet
+# Custom CSS for better styling
 st.markdown("""
 <style>
-    /* Import des polices Chillax et Sora */
-    @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&display=swap');
-    
-    /* Police globale */
-    * {
-        font-family: 'Sora', 'Segoe UI', sans-serif !important;
-    }
-    
-    /* FOND PRINCIPAL - Dégradé rouge vers bleu clair */
-    [data-testid="stAppViewContainer"] {
-        background: linear-gradient(135deg, #FF502E 0%, #F54A45 15%, #E8445B 30%, #B85A9E 50%, #7B6EC8 70%, #4A8FFF 100%) !important;
-        background-attachment: fixed !important;
-    }
-    
-    /* HEADER BAR - Barre du haut avec bouton Deploy */
-    [data-testid="stHeader"] {
-        background: linear-gradient(90deg, #212278 0%, #4A1942 50%, #212278 100%) !important;
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-    }
-    
-    /* Bouton Deploy et autres boutons du header */
-    [data-testid="stHeader"] button {
-        color: #F9F5FF !important;
-        border-color: #C7A4FF !important;
-    }
-    
-    [data-testid="stHeader"] button:hover {
-        background-color: rgba(199, 164, 255, 0.2) !important;
-        border-color: #FF502E !important;
-    }
-    
-    /* Overlay content */
-    [data-testid="stAppViewContainer"] > .main {
-        background: transparent !important;
-    }
-    
-    .main .block-container {
-        background: rgba(249, 245, 255, 0.95) !important;
-        border-radius: 20px;
-        padding: 2rem;
-        box-shadow: 0 8px 32px rgba(40, 42, 230, 0.3);
-        backdrop-filter: blur(15px);
-        -webkit-backdrop-filter: blur(15px);
-    }
-    
-    /* TITRES H1, H2, H3 - Couleurs du thème */
-    h1, h2, h3 {
-        color: #282AE6 !important;
-        font-weight: 700 !important;
-    }
-    
-    h1 {
-        background: linear-gradient(135deg, #282AE6 0%, #C7A4FF 50%, #FF502E 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-    }
-    
-    h2 {
-        color: #212278 !important;
-        padding-bottom: 0.5rem;
-    }
-    
-    h3 {
-        color: #62B0FF !important;
-        font-size: 1.5rem !important;
-        font-weight: 600 !important;
-    }
-    
-    /* Header principal personnalisé */
     .main-header {
-        font-size: 4.5rem !important;
-        font-weight: 900 !important;
-        background: linear-gradient(135deg, #282AE6 0%, #C7A4FF 50%, #FF502E 100%) !important;
-        -webkit-background-clip: text !important;
-        -webkit-text-fill-color: transparent !important;
-        background-clip: text !important;
-        text-align: center !important;
-        margin-bottom: 2rem !important;
-        line-height: 1.2 !important;
-        letter-spacing: -0.02em !important;
-    }
-    
-    /* Section headers personnalisés */
-    .section-header {
-        font-size: 2.2rem !important;
-        font-weight: 800 !important;
-        color: #282AE6 !important;
-        margin-top: 2rem !important;
-        margin-bottom: 1.5rem !important;
-        padding-bottom: 0.5rem !important;
-        display: block !important;
-    }
-    
-    /* Cards métriques */
-    .metric-card {
-        background: linear-gradient(135deg, #282AE6 0%, #212278 100%);
-        padding: 1.5rem;
-        border-radius: 15px;
-        color: white;
+        font-size: 3rem;
+        font-weight: bold;
+        color: #1f77b4;
         text-align: center;
-        box-shadow: 0 4px 15px rgba(40, 42, 230, 0.3);
-        border: 2px solid rgba(199, 164, 255, 0.3);
+        margin-bottom: 2rem;
     }
-    
-    /* Métriques Streamlit natives */
-    [data-testid="stMetric"] {
-        background: rgba(255, 255, 255, 0.25) !important;
-        padding: 1rem !important;
-        border-radius: 12px !important;
-        box-shadow: 0 4px 16px rgba(40, 42, 230, 0.15) !important;
-        border: 1px solid rgba(199, 164, 255, 0.25) !important;
+    .metric-card {
+        background-color: #f0f2f6;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin: 0.5rem 0;
     }
-    
-    [data-testid="stMetricValue"] {
+    .stMetric {
+        background-color: #ffffff;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    /* Number input styling with custom blue color */
+    .stNumberInput > div > div > input {
+        border-color: #E3F1FF !important;
+    }
+    .stNumberInput > div > div > input:focus {
+        border-color: #282AE6 !important;
+        box-shadow: 0 0 0 0.2rem rgba(40, 42, 230, 0.25) !important;
+    }
+    .stNumberInput button {
         color: #282AE6 !important;
-        font-size: 2.5rem !important;
-        font-weight: 800 !important;
     }
-    
-    [data-testid="stMetricLabel"] {
-        color: #212278 !important;
-        font-weight: 700 !important;
-        font-size: 1rem !important;
-    }
-    
-    [data-testid="stMetricDelta"] {
-        color: #FF502E !important;
-    }
-    
-    /* SIDEBAR - Dégradé violet */
-    [data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #212278 0%, #4A1942 100%) !important;
-    }
-    
-    [data-testid="stSidebar"] > div:first-child {
-        background: linear-gradient(180deg, #212278 0%, #4A1942 100%) !important;
-    }
-    
-    /* Texte sidebar */
-    [data-testid="stSidebar"] * {
-        color: #F9F5FF !important;
-    }
-    
-    [data-testid="stSidebar"] h1,
-    [data-testid="stSidebar"] h2,
-    [data-testid="stSidebar"] h3 {
-        color: #C7A4FF !important;
-    }
-    
-    /* Labels sidebar */
-    [data-testid="stSidebar"] label {
-        color: #E3F1FF !important;
-    }
-    
-    /* Widgets */
-    .stSelectbox label, .stMultiSelect label {
-        color: #212278 !important;
-        font-weight: 600 !important;
-    }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        background-color: rgba(40, 42, 230, 0.1);
-        border-radius: 8px;
-        color: #282AE6;
-        font-weight: 600;
-    }
-    
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, #282AE6 0%, #C7A4FF 100%) !important;
-        color: white !important;
-    }
-    
-    /* Expander (bouton déroulant filtres) */
-    [data-testid="stExpander"] {
-        background: rgba(255, 255, 255, 0.6) !important;
-        border: 1px solid rgba(199, 164, 255, 0.4) !important;
-        border-radius: 10px !important;
-    }
-    
-    [data-testid="stExpander"] summary {
-        background: rgba(40, 42, 230, 0.1) !important;
-        color: #282AE6 !important;
-        font-weight: 700 !important;
-        padding: 0.8rem !important;
-        border-radius: 8px !important;
-    }
-    
-    [data-testid="stExpander"] summary:hover {
-        background: rgba(199, 164, 255, 0.3) !important;
-    }
-    
-    /* Conteneur des graphiques Plotly - Un seul cadre opaque */
-    .stPlotlyChart {
-        background: rgba(255, 255, 255, 0.25) !important;
-        border-radius: 12px !important;
-        padding: 0.5rem !important;
-        box-shadow: 0 4px 16px rgba(40, 42, 230, 0.15) !important;
-        border: 1px solid rgba(199, 164, 255, 0.25) !important;
-    }
-    
-    /* Graphique Plotly lui-même - Transparent et bien ajusté */
-    .js-plotly-plot {
-        background: transparent !important;
-    }
-    
-    .js-plotly-plot .plotly {
-        width: 100% !important;
-        height: 100% !important;
-    }
-    
-    .js-plotly-plot .main-svg {
-        width: 100% !important;
-        height: 100% !important;
-    }
-    
-    /* Hover effects */
-    .metric-card:hover {
-        transform: translateY(-5px);
-        transition: all 0.3s ease;
-        box-shadow: 0 8px 25px rgba(255, 80, 46, 0.4);
-    }
-    
-    /* Markdown text */
-    .stMarkdown {
-        color: #212278 !important;
-    }
-    
-    /* Supprimer traits oranges - HR tags */
-    hr {
-        border: none !important;
-        border-top: 1px solid rgba(199, 164, 255, 0.3) !important;
-        margin: 1rem 0 !important;
+    .stNumberInput button:hover {
+        background-color: #E3F1FF !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
+# Load data
+@st.cache_data
+def load_data():
+    """Load the alpha holders analysis data"""
+    with open('output/alpha_holders_analysis.json', 'r') as f:
+        data = json.load(f)
+    return data
+
+def filter_data_by_role(data: List[Dict], role_filter: str) -> List[Dict]:
+    """Filter data by role"""
+    if role_filter == "All":
+        return data
+    
+    filtered = []
+    for holder in data:
+        roles = holder.get('roles', [])
+        if role_filter == "Subnet Owner" and "Subnet Owner" in roles:
+            filtered.append(holder)
+        elif role_filter == "Investor" and "Investor" in roles:
+            filtered.append(holder)
+        elif role_filter == "Miner" and "Miner" in roles:
+            filtered.append(holder)
+    
+    return filtered
+
+def filter_data_by_staking_proxy(data: List[Dict], proxy_filter: str) -> List[Dict]:
+    """Filter data by staking proxy status"""
+    if proxy_filter == "All":
+        return data
+    elif proxy_filter == "True":
+        return [h for h in data if h.get('has_staking_proxy', False)]
+    else:  # False
+        return [h for h in data if not h.get('has_staking_proxy', False)]
+
+def filter_data_by_wallet_value(data: List[Dict], min_value: float, max_value: float) -> List[Dict]:
+    """Filter data by total wallet value in TAO"""
+    return [h for h in data if min_value <= h.get('total_wallet_value_tao', 0) <= max_value]
+
 def apply_chart_theme(fig):
-    """Apply custom theme to Plotly charts"""
+    """Apply consistent theme to plotly charts"""
     fig.update_layout(
-        paper_bgcolor='rgba(0, 0, 0, 0)',  # Complètement transparent
-        plot_bgcolor='rgba(0, 0, 0, 0)',   # Complètement transparent
-        font=dict(
-            family="'Sora', 'Segoe UI', sans-serif",
-            size=13,
-            color='#212278'
-        ),
-        title_font=dict(
-            size=17,
-            color='#282AE6',
-            family="'Sora', 'Segoe UI', sans-serif"
-        ),
-        xaxis=dict(
-            title_font=dict(size=14, color='#212278', family="'Sora', sans-serif", weight=700),
-            tickfont=dict(size=12, color='#212278', family="'Sora', sans-serif", weight=600),
-            gridcolor='rgba(33, 34, 120, 0.1)',
-            linecolor='#212278',
-            linewidth=2
-        ),
-        yaxis=dict(
-            title_font=dict(size=14, color='#212278', family="'Sora', sans-serif", weight=700),
-            tickfont=dict(size=12, color='#212278', family="'Sora', sans-serif", weight=600),
-            gridcolor='rgba(33, 34, 120, 0.1)',
-            linecolor='#212278',
-            linewidth=2
-        ),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(size=12),
+        margin=dict(l=20, r=20, t=40, b=20),
+        showlegend=True,
         legend=dict(
-            font=dict(size=12, color='#212278', family="'Sora', sans-serif", weight=600),
-            bgcolor='rgba(0, 0, 0, 0)',
-            bordercolor='rgba(0, 0, 0, 0)',
-            borderwidth=0
-        ),
-        hoverlabel=dict(
-            bgcolor='rgba(249, 245, 255, 0.95)',
-            font_size=13,
-            font_family="'Sora', 'Segoe UI', sans-serif",
-            bordercolor='#C7A4FF'
-        ),
-        margin=dict(t=40, b=30, l=40, r=20),  # Marges réduites
-        autosize=True  # Auto-ajustement
+            orientation="v",
+            yanchor="top",
+            y=1,
+            xanchor="left",
+            x=1.02
+        )
     )
     return fig
 
-@st.cache_data
-def load_data(file_path: str = 'output/alpha_holders_analysis.json') -> pd.DataFrame:
-    """Charge et prépare les données"""
-    with open(file_path, 'r') as f:
-        data = json.load(f)
-    
-    df = pd.DataFrame(data)
-    
-    # Créer une colonne 'primary_role' pour faciliter l'analyse
-    # Priorité: Subnet Owner > Validator > Miner > Investor
-    def get_primary_role(roles):
-        if 'Subnet Owner' in roles:
-            return 'Subnet Owner'
-        elif 'Validator' in roles:
-            return 'Validator'
-        elif 'Miner' in roles:
-            return 'Miner'
-        else:
-            return 'Investor'
-    
-    df['primary_role'] = df['roles'].apply(get_primary_role)
-    
-    return df
+def format_number(num, decimals=2):
+    """Format large numbers with K, M, B suffixes"""
+    if num >= 1_000_000:
+        return f"{num/1_000_000:.{decimals}f}M"
+    elif num >= 1_000:
+        return f"{num/1_000:.{decimals}f}K"
+    else:
+        return f"{num:.{decimals}f}"
 
-def create_overview_metrics(df: pd.DataFrame):
-    """Global metrics"""
-    col1, col2, col3 = st.columns(3)
+def create_global_role_analysis(data: List[Dict]):
+    """Create global analysis by role (NO FILTERS APPLIED)"""
+    st.markdown("<h2>📊 Global Analysis by Role (Unfiltered Data)</h2>", unsafe_allow_html=True)
     
-    with col1:
-        st.metric(
-            label="Total Coldkeys",
-            value=f"{len(df):,}",
-            help="Total number of coldkeys with > 0.1 TAO alpha"
-        )
+    # Aggregate by role
+    role_stats = {}
     
-    with col2:
-        total_alpha = df['total_alpha_value_tao'].sum()
-        st.metric(
-            label="Total Alpha (TAO)",
-            value=f"{total_alpha:,.0f}",
-            help="Total value of alpha tokens held"
-        )
+    for holder in data:
+        roles = holder.get('roles', ['Unknown'])
+        for role in roles:
+            if role not in role_stats:
+                role_stats[role] = {
+                    'count': 0,
+                    'total_alpha_tao': 0
+                }
+            
+            role_stats[role]['count'] += 1
+            role_stats[role]['total_alpha_tao'] += holder['total_alpha_value_tao']
     
-    with col3:
-        avg_alpha_pct = df['alpha_percentage'].mean()
-        st.metric(
-            label="Average % Alpha",
-            value=f"{avg_alpha_pct:.1f}%",
-            help="Average percentage of alpha in wallets"
-        )
-
-def create_staking_proxy_analysis(df: pd.DataFrame):
-    """Staking Proxy Analysis"""
-    st.markdown('<p class="section-header">Staking Proxy Analysis</p>', unsafe_allow_html=True)
+    # Create DataFrame
+    role_df = pd.DataFrame([
+        {'Role': role, 'Coldkeys': stats['count'], 'Total Alpha (TAO)': stats['total_alpha_tao']}
+        for role, stats in role_stats.items()
+    ]).sort_values('Total Alpha (TAO)', ascending=False)
     
-    # Calculer les statistiques
-    with_proxy = df[df['has_staking_proxy'] == True]
-    without_proxy = df[df['has_staking_proxy'] == False]
-    
-    total_wallets = len(df)
-    proxy_count = len(with_proxy)
-    proxy_pct = (proxy_count / total_wallets) * 100
-    
-    proxy_alpha_value = with_proxy['total_alpha_value_tao'].sum()
-    total_alpha_value = df['total_alpha_value_tao'].sum()
-    proxy_alpha_pct = (proxy_alpha_value / total_alpha_value) * 100
-    
-    # Métriques principales
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric(
-            label="Wallets with Proxy",
-            value=f"{proxy_count:,}",
-            delta=f"{proxy_pct:.1f}% of total",
-            help="Number of wallets using a staking proxy"
-        )
-    
-    with col2:
-        st.metric(
-            label="Alpha Value in Proxy (TAO)",
-            value=f"{proxy_alpha_value:,.0f}",
-            delta=f"{proxy_alpha_pct:.1f}% of total",
-            help="Total alpha value held in wallets with staking proxy"
-        )
-    
-    with col3:
-        avg_proxy_alpha = with_proxy['total_alpha_value_tao'].mean()
-        avg_no_proxy_alpha = without_proxy['total_alpha_value_tao'].mean()
-        st.metric(
-            label="Avg Alpha per Proxy Wallet",
-            value=f"{avg_proxy_alpha:,.0f} TAO",
-            delta=f"{((avg_proxy_alpha / avg_no_proxy_alpha - 1) * 100):.1f}% vs no proxy" if len(without_proxy) > 0 else "N/A",
-            help="Average alpha value in wallets with proxy vs without"
-        )
-    
-    # Graphiques comparatifs
     col1, col2 = st.columns(2)
     
     with col1:
-        # Pie chart: Distribution des wallets
-        proxy_data = pd.DataFrame({
-            'Status': ['With Proxy', 'Without Proxy'],
-            'Count': [proxy_count, len(without_proxy)]
+        # Bar chart: Total TAO by Role
+        fig = px.bar(
+            role_df,
+            x='Role',
+            y='Total Alpha (TAO)',
+            title='Total Alpha Value (TAO) by Role',
+            color='Total Alpha (TAO)',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+        )
+        fig.update_traces(hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        # Bar chart: Number of Coldkeys by Role
+        fig = px.bar(
+            role_df,
+            x='Role',
+            y='Coldkeys',
+            title='Number of Coldkeys by Role',
+            color='Coldkeys',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+        )
+        fig.update_traces(hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+
+def create_breakdown_by_tx(data: List[Dict]):
+    """Create breakdown by number of transactions (10 categories)"""
+    st.markdown("<h2>💸 Breakdown by Transaction Count</h2>", unsafe_allow_html=True)
+    
+    # Define TX categories
+    categories = [
+        ('0', 0, 0),
+        ('1-5', 1, 5),
+        ('6-10', 6, 10),
+        ('11-20', 11, 20),
+        ('21-30', 21, 30),
+        ('31-50', 31, 50),
+        ('51-75', 51, 75),
+        ('76-100', 76, 100),
+        ('101-200', 101, 200),
+        ('201-500', 201, 500),
+        ('500+', 501, float('inf'))
+    ]
+    
+    # Aggregate stats
+    tx_stats = []
+    for cat_name, min_tx, max_tx in categories:
+        holders = [h for h in data if min_tx <= h.get('number_tx', 0) <= max_tx]
+        total_alpha = sum(h['total_alpha_value_tao'] for h in holders)
+        tx_stats.append({
+            'Category': cat_name,
+            'Coldkeys': len(holders),
+            'Total Alpha (TAO)': total_alpha
         })
-        fig = px.pie(
-            proxy_data,
-            values='Count',
-            names='Status',
-            title='Wallet Distribution',
-            hole=0.4,
-            color='Status',
-            color_discrete_map={
-                'With Proxy': '#FF502E',
-                'Without Proxy': '#62B0FF'
-            }
+    
+    df = pd.DataFrame(tx_stats)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Alpha value by TX category
+        fig = px.bar(
+            df,
+            x='Category',
+            y='Total Alpha (TAO)',
+            title='Alpha Value by Transaction Count',
+            color='Total Alpha (TAO)',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
         )
-        fig.update_traces(textposition='inside', textinfo='percent+label')
-        fig.update_layout(showlegend=False)
+        fig.update_traces(hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        # Pie chart: Distribution de la valeur alpha
-        value_data = pd.DataFrame({
-            'Status': ['With Proxy', 'Without Proxy'],
-            'Alpha Value': [proxy_alpha_value, total_alpha_value - proxy_alpha_value]
+        # Number of coldkeys by TX category
+        fig = px.bar(
+            df,
+            x='Category',
+            y='Coldkeys',
+            title='Number of Coldkeys by Transaction Count',
+            color='Coldkeys',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+        )
+        fig.update_traces(hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+
+def create_breakdown_by_tx_detailed(data: List[Dict]):
+    """Create breakdown by number of transactions (all values with log scale)"""
+    st.markdown("<h3>📊 Detailed Transaction Count Distribution</h3>", unsafe_allow_html=True)
+    
+    # Group by exact transaction count
+    tx_stats = {}
+    for holder in data:
+        tx_count = holder.get('number_tx', 0)
+        if tx_count not in tx_stats:
+            tx_stats[tx_count] = {
+                'holders': [],
+                'total_alpha': 0
+            }
+        tx_stats[tx_count]['holders'].append(holder)
+        tx_stats[tx_count]['total_alpha'] += holder['total_alpha_value_tao']
+    
+    # Convert to DataFrame
+    tx_data = []
+    for tx_count, stats in sorted(tx_stats.items()):
+        tx_data.append({
+            'TX Count': tx_count,
+            'Coldkeys': len(stats['holders']),
+            'Total Alpha (TAO)': stats['total_alpha']
         })
-        fig = px.pie(
-            value_data,
-            values='Alpha Value',
-            names='Status',
-            title='Alpha Value Distribution (TAO)',
-            hole=0.4,
-            color='Status',
-            color_discrete_map={
-                'With Proxy': '#FF502E',
-                'Without Proxy': '#62B0FF'
-            }
-        )
-        fig.update_traces(textposition='inside', textinfo='percent+label')
-        fig.update_layout(showlegend=False)
-        fig = apply_chart_theme(fig)
-        st.plotly_chart(fig, use_container_width=True)
-
-def create_category_overview(df: pd.DataFrame):
-    """Category overview"""
-    st.markdown('<p class="section-header">Distribution by Category</p>', unsafe_allow_html=True)
     
-    # Compter par catégorie
-    category_counts = df['primary_role'].value_counts().reset_index()
-    category_counts.columns = ['Category', 'Number']
-    
-    # Valeur TAO par catégorie
-    category_values = df.groupby('primary_role')['total_alpha_value_tao'].sum().reset_index()
-    category_values.columns = ['Category', 'TAO Value']
+    df = pd.DataFrame(tx_data)
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### Number of Coldkeys by Category")
+        # Alpha value by TX count
         fig = px.bar(
-            category_counts,
+            df,
+            x='TX Count',
+            y='Total Alpha (TAO)',
+            title='Alpha Value by Transaction Count (Log Scale)',
+            color='Total Alpha (TAO)',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            log_y=True
+        )
+        fig.update_traces(hovertemplate='TX: %{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        # Number of coldkeys by TX count
+        fig = px.bar(
+            df,
+            x='TX Count',
+            y='Coldkeys',
+            title='Number of Coldkeys by Transaction Count (Log Scale)',
+            color='Coldkeys',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            log_y=True
+        )
+        fig.update_traces(hovertemplate='TX: %{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+
+def create_breakdown_by_tokens(data: List[Dict]):
+    """Create breakdown by number of unique tokens held (10 categories)"""
+    st.markdown("<h2>🎯 Breakdown by Number of Tokens Held</h2>", unsafe_allow_html=True)
+    
+    # Define 10 token categories
+    categories = [
+        ('1', 1, 1),
+        ('2-3', 2, 3),
+        ('4-5', 4, 5),
+        ('6-8', 6, 8),
+        ('9-12', 9, 12),
+        ('13-16', 13, 16),
+        ('17-20', 17, 20),
+        ('21-30', 21, 30),
+        ('31-50', 31, 50),
+        ('50+', 51, float('inf'))
+    ]
+    
+    # Aggregate stats
+    token_stats = []
+    for cat_name, min_tokens, max_tokens in categories:
+        holders = [h for h in data if min_tokens <= h.get('unique_alpha_tokens', 0) <= max_tokens]
+        total_alpha = sum(h['total_alpha_value_tao'] for h in holders)
+        token_stats.append({
+            'Category': cat_name,
+            'Coldkeys': len(holders),
+            'Total Alpha (TAO)': total_alpha
+        })
+    
+    df = pd.DataFrame(token_stats)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Alpha value by token category
+        fig = px.bar(
+            df,
             x='Category',
-            y='Number',
-            color='Category',
-            text='Number',
-            color_discrete_map={
-                'Subnet Owner': '#FF502E',  # Rouge-orange
-                'Validator': '#282AE6',     # Bleu principal
-                'Miner': '#62B0FF',         # Bleu ciel
-                'Investor': '#C7A4FF'       # Violet clair
-            }
+            y='Total Alpha (TAO)',
+            title='Alpha Value by Number of Tokens',
+            color='Total Alpha (TAO)',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
         )
-        fig.update_traces(texttemplate='%{text:,}', textposition='auto')
-        fig.update_layout(showlegend=False, height=450, title='')
+        fig.update_traces(hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        st.markdown("### Alpha Value (TAO) by Category")
+        # Number of coldkeys by token category
         fig = px.bar(
-            category_values,
+            df,
             x='Category',
-            y='TAO Value',
-            color='Category',
-            text='TAO Value',
-            color_discrete_map={
-                'Subnet Owner': '#FF502E',  # Rouge-orange
-                'Validator': '#282AE6',     # Bleu principal
-                'Miner': '#62B0FF',         # Bleu ciel
-                'Investor': '#C7A4FF'       # Violet clair
+            y='Coldkeys',
+            title='Number of Coldkeys by Token Count',
+            color='Coldkeys',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+        )
+        fig.update_traces(hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+
+def create_breakdown_by_tokens_detailed(data: List[Dict]):
+    """Create breakdown by number of unique tokens held (all values with log scale)"""
+    st.markdown("<h3>📊 Detailed Token Count Distribution</h3>", unsafe_allow_html=True)
+    
+    # Group by exact token count
+    token_stats = {}
+    for holder in data:
+        token_count = holder.get('unique_alpha_tokens', 0)
+        if token_count not in token_stats:
+            token_stats[token_count] = {
+                'holders': [],
+                'total_alpha': 0
             }
-        )
-        fig.update_traces(texttemplate='%{text:,.0f}', textposition='auto')
-        fig.update_layout(showlegend=False, height=450, title='')
-        fig = apply_chart_theme(fig)
-        st.plotly_chart(fig, use_container_width=True)
-
-def categorize_token_count(count: int) -> str:
-    """Categorize token count"""
-    if count == 1:
-        return '1 token'
-    elif 2 <= count <= 5:
-        return '2-5 tokens'
-    elif 6 <= count <= 10:
-        return '6-10 tokens'
-    else:
-        return '10+ tokens'
-
-def categorize_alpha_percentage(pct: float) -> str:
-    """Categorize alpha percentage"""
-    if pct < 25:
-        return '0-25%'
-    elif pct < 50:
-        return '25-50%'
-    elif pct < 95:
-        return '50-95%'
-    else:
-        return '95-100%'
-
-def categorize_wallet_value(value: float) -> str:
-    """Categorize wallet value"""
-    if value < 10:
-        return '< 10 TAO'
-    elif value < 100:
-        return '10-100 TAO'
-    elif value < 1000:
-        return '100-1K TAO'
-    elif value < 10000:
-        return '1K-10K TAO'
-    else:
-        return '10K+ TAO'
-
-def categorize_tx_count(tx: int) -> str:
-    """Categorize transaction count"""
-    if tx == 0:
-        return '0 tx'
-    elif tx < 10:
-        return '1-10 tx'
-    elif tx < 50:
-        return '10-50 tx'
-    elif tx < 100:
-        return '50-100 tx'
-    else:
-        return '100+ tx'
-
-def create_distribution_charts(df: pd.DataFrame, category: str, title: str):
-    """Create distribution charts for a category"""
+        token_stats[token_count]['holders'].append(holder)
+        token_stats[token_count]['total_alpha'] += holder['total_alpha_value_tao']
     
-    # Filter by category
-    if category != 'All':
-        df_cat = df[df['primary_role'] == category].copy()
-    else:
-        df_cat = df.copy()
+    # Convert to DataFrame
+    token_data = []
+    for token_count, stats in sorted(token_stats.items()):
+        token_data.append({
+            'Token Count': token_count,
+            'Coldkeys': len(stats['holders']),
+            'Total Alpha (TAO)': stats['total_alpha']
+        })
     
-    st.markdown(f'<p class="section-header">{title}</p>', unsafe_allow_html=True)
-    
-    # 1. Distribution by number of different tokens
-    st.markdown("### Distribution by Number of Different Alpha Tokens")
-    
-    df_cat['token_category'] = df_cat['unique_alpha_tokens'].apply(categorize_token_count)
-    
-    # Category order
-    token_order = ['1 token', '2-5 tokens', '6-10 tokens', '10+ tokens']
+    df = pd.DataFrame(token_data)
     
     col1, col2 = st.columns(2)
     
     with col1:
-        # By number of coldkeys
-        token_count = df_cat['token_category'].value_counts().reindex(token_order, fill_value=0)
-        colors = [COLOR_PALETTES['token_count'][cat] for cat in token_count.index]
-        fig = px.pie(
-            values=token_count.values,
-            names=token_count.index,
-            title='% by Number of Coldkeys',
-            hole=0.4,
-            color=token_count.index,
-            color_discrete_map=COLOR_PALETTES['token_count']
+        # Alpha value by token count
+        fig = px.bar(
+            df,
+            x='Token Count',
+            y='Total Alpha (TAO)',
+            title='Alpha Value by Number of Tokens (Log Scale)',
+            color='Total Alpha (TAO)',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            log_y=True
         )
-        fig.update_traces(textposition='inside', textinfo='percent+label')
-        fig.update_layout(showlegend=False)
+        fig.update_traces(hovertemplate='Tokens: %{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
         st.plotly_chart(fig, use_container_width=True)
     
     with col2:
-        # By TAO value
-        token_value = df_cat.groupby('token_category')['total_alpha_value_tao'].sum().reindex(token_order, fill_value=0)
-        fig = px.pie(
-            values=token_value.values,
-            names=token_value.index,
-            title='% by TAO Value',
-            hole=0.4,
-            color=token_value.index,
-            color_discrete_map=COLOR_PALETTES['token_count']
-        )
-        fig.update_traces(textposition='inside', textinfo='percent+label')
-        fig.update_layout(showlegend=False)
-        fig = apply_chart_theme(fig)
-        st.plotly_chart(fig, use_container_width=True)
-    
-    # 2. Distribution by % alpha in wallet
-    st.markdown("### Distribution by % Alpha in Wallet")
-    
-    df_cat['alpha_pct_category'] = df_cat['alpha_percentage'].apply(categorize_alpha_percentage)
-    
-    alpha_pct_order = ['0-25%', '25-50%', '50-95%', '95-100%']
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        pct_count = df_cat['alpha_pct_category'].value_counts().reindex(alpha_pct_order, fill_value=0)
-        fig = px.pie(
-            values=pct_count.values,
-            names=pct_count.index,
-            title='% by Number of Coldkeys',
-            hole=0.4,
-            color=pct_count.index,
-            color_discrete_map=COLOR_PALETTES['alpha_percentage']
-        )
-        fig.update_traces(textposition='inside', textinfo='percent+label')
-        fig.update_layout(showlegend=False)
-        fig = apply_chart_theme(fig)
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        pct_value = df_cat.groupby('alpha_pct_category')['total_alpha_value_tao'].sum().reindex(alpha_pct_order, fill_value=0)
-        fig = px.pie(
-            values=pct_value.values,
-            names=pct_value.index,
-            title='% by TAO Value',
-            hole=0.4,
-            color=pct_value.index,
-            color_discrete_map=COLOR_PALETTES['alpha_percentage']
-        )
-        fig.update_traces(textposition='inside', textinfo='percent+label')
-        fig.update_layout(showlegend=False)
-        fig = apply_chart_theme(fig)
-        st.plotly_chart(fig, use_container_width=True)
-    
-    # 3. Distribution by total amount in TAO
-    st.markdown("### Distribution by Total Wallet Amount")
-    
-    df_cat['wallet_value_category'] = df_cat['total_wallet_value_tao'].apply(categorize_wallet_value)
-    
-    wallet_order = ['< 10 TAO', '10-100 TAO', '100-1K TAO', '1K-10K TAO', '10K+ TAO']
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        wallet_count = df_cat['wallet_value_category'].value_counts().reindex(wallet_order, fill_value=0)
+        # Number of coldkeys by token count
         fig = px.bar(
-            x=wallet_count.index,
-            y=wallet_count.values,
-            title='Number of Coldkeys by Range',
-            labels={'x': 'Range', 'y': 'Number'},
-            color=wallet_count.index,
-            color_discrete_map=COLOR_PALETTES['wallet_value']
+            df,
+            x='Token Count',
+            y='Coldkeys',
+            title='Number of Coldkeys by Token Count (Log Scale)',
+            color='Coldkeys',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            log_y=True
         )
-        fig.update_layout(showlegend=False)
-        fig = apply_chart_theme(fig)
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        wallet_value = df_cat.groupby('wallet_value_category')['total_alpha_value_tao'].sum().reindex(wallet_order, fill_value=0)
-        fig = px.bar(
-            x=wallet_value.index,
-            y=wallet_value.values,
-            title='Alpha Value (TAO) by Range',
-            labels={'x': 'Range', 'y': 'TAO'},
-            color=wallet_value.index,
-            color_discrete_map=COLOR_PALETTES['wallet_value']
-        )
-        fig.update_layout(showlegend=False)
-        fig = apply_chart_theme(fig)
-        st.plotly_chart(fig, use_container_width=True)
-    
-    # 4. Distribution by number of transactions
-    st.markdown("### Distribution by Number of Transactions")
-    
-    df_cat['tx_category'] = df_cat['number_tx'].apply(categorize_tx_count)
-    
-    tx_order = ['0 tx', '1-10 tx', '10-50 tx', '50-100 tx', '100+ tx']
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        tx_count = df_cat['tx_category'].value_counts().reindex(tx_order, fill_value=0)
-        fig = px.bar(
-            x=tx_count.index,
-            y=tx_count.values,
-            title='Number of Coldkeys by Range',
-            labels={'x': 'Range', 'y': 'Number'},
-            color=tx_count.index,
-            color_discrete_map=COLOR_PALETTES['tx_count']
-        )
-        fig.update_layout(showlegend=False)
-        fig = apply_chart_theme(fig)
-        st.plotly_chart(fig, use_container_width=True)
-    
-    with col2:
-        tx_value = df_cat.groupby('tx_category')['total_alpha_value_tao'].sum().reindex(tx_order, fill_value=0)
-        fig = px.bar(
-            x=tx_value.index,
-            y=tx_value.values,
-            title='Alpha Value (TAO) by Range',
-            labels={'x': 'Range', 'y': 'TAO'},
-            color=tx_value.index,
-            color_discrete_map=COLOR_PALETTES['tx_count']
-        )
-        fig.update_layout(showlegend=False)
+        fig.update_traces(hovertemplate='Tokens: %{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
         st.plotly_chart(fig, use_container_width=True)
 
-def main():
-    # En-tête
-    st.markdown('<p class="main-header">Alpha Holders Dashboard</p>', unsafe_allow_html=True)
+def create_breakdown_by_alpha_percentage(data: List[Dict]):
+    """Create breakdown by alpha percentage"""
+    st.markdown("<h2>📈 Breakdown by Alpha Percentage</h2>", unsafe_allow_html=True)
     
-    # Charger les données
-    try:
-        df = load_data()
-    except FileNotFoundError:
-        st.error("Data file not found. Please run the analysis first.")
-        st.stop()
+    # Define alpha % categories
+    categories = [
+        ('0-25%', lambda h: h.get('alpha_percentage', 0) < 25),
+        ('25-50%', lambda h: 25 <= h.get('alpha_percentage', 0) < 50),
+        ('50-75%', lambda h: 50 <= h.get('alpha_percentage', 0) < 75),
+        ('75-90%', lambda h: 75 <= h.get('alpha_percentage', 0) < 90),
+        ('90-95%', lambda h: 90 <= h.get('alpha_percentage', 0) < 95),
+        ('95-99%', lambda h: 95 <= h.get('alpha_percentage', 0) < 99),
+        ('99-100%', lambda h: h.get('alpha_percentage', 0) >= 99)
+    ]
     
-    # Métriques globales
-    create_overview_metrics(df)
+    # Aggregate stats
+    alpha_stats = []
+    for cat_name, cat_filter in categories:
+        holders = [h for h in data if cat_filter(h)]
+        total_alpha = sum(h['total_alpha_value_tao'] for h in holders)
+        alpha_stats.append({
+            'Category': cat_name,
+            'Coldkeys': len(holders),
+            'Total Alpha (TAO)': total_alpha
+        })
     
-    # Vue d'ensemble par catégorie
-    create_category_overview(df)
+    df = pd.DataFrame(alpha_stats)
     
-    # Category selector in sidebar
-    st.sidebar.markdown("## Filters")
+    col1, col2 = st.columns(2)
     
-    category_filter = st.sidebar.radio(
-        "Select a category",
-        ['All', 'Subnet Owner', 'Validator', 'Miner', 'Investor'],
-        help="Filter analyses by wallet category"
+    with col1:
+        # Alpha value by alpha %
+        fig = px.bar(
+            df,
+            x='Category',
+            y='Total Alpha (TAO)',
+            title='Alpha Value by Alpha Percentage Range',
+            color='Total Alpha (TAO)',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+        )
+        fig.update_traces(hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        # Number of coldkeys by alpha %
+        fig = px.bar(
+            df,
+            x='Category',
+            y='Coldkeys',
+            title='Number of Coldkeys by Alpha Percentage',
+            color='Coldkeys',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+        )
+        fig.update_traces(hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+
+def create_top_holders_table(data: List[Dict], n: int = 20):
+    """Create table of top holders"""
+    st.markdown(f"<h2>🏆 Top {n} Alpha Holders</h2>", unsafe_allow_html=True)
+    
+    # Sort by total alpha value
+    sorted_data = sorted(data, key=lambda x: x['total_alpha_value_tao'], reverse=True)[:n]
+    
+    # Create dataframe
+    table_data = []
+    for i, holder in enumerate(sorted_data, 1):
+        table_data.append({
+            "Rank": i,
+            "Coldkey": holder['coldkey'][:20] + "...",
+            "Alpha Value (TAO)": f"{holder['total_alpha_value_tao']:,.2f}",
+            "Total Value (TAO)": f"{holder['total_wallet_value_tao']:,.2f}",
+            "Alpha %": f"{holder['alpha_percentage']:.2f}%",
+            "Unique Tokens": holder['unique_alpha_tokens'],
+            "Staking Proxy": "✅" if holder.get('has_staking_proxy', False) else "❌",
+            "Roles": ", ".join(holder.get('roles', []))
+        })
+    
+    df = pd.DataFrame(table_data)
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+def create_subnet_breakdown(data: List[Dict]):
+    """Create subnet-level breakdown of alpha stakes"""
+    st.markdown("<h2>🌐 Complete Subnet Breakdown</h2>", unsafe_allow_html=True)
+    
+    # Aggregate alpha holdings by subnet
+    subnet_stats = {}
+    
+    for holder in data:
+        for holding in holder.get('alpha_holdings', []):
+            netuid = holding['netuid']
+            subnet_name = holding['subnet_name']
+            balance_alpha = holding['balance_alpha']
+            value_tao = holding['value_tao']
+            
+            if netuid not in subnet_stats:
+                subnet_stats[netuid] = {
+                    'netuid': netuid,
+                    'subnet_name': subnet_name,
+                    'total_alpha_staked': 0,
+                    'total_value_tao': 0,
+                    'staker_count': set()
+                }
+            
+            subnet_stats[netuid]['total_alpha_staked'] += balance_alpha
+            subnet_stats[netuid]['total_value_tao'] += value_tao
+            subnet_stats[netuid]['staker_count'].add(holder['coldkey'])
+    
+    # Convert to DataFrame
+    subnet_data = []
+    for netuid, stats in subnet_stats.items():
+        subnet_data.append({
+            'Netuid': netuid,
+            'Subnet Name': stats['subnet_name'],
+            'Total Alpha Staked': stats['total_alpha_staked'],
+            'Total Value (TAO)': stats['total_value_tao'],
+            'Number of Stakers': len(stats['staker_count'])
+        })
+    
+    subnet_df = pd.DataFrame(subnet_data).sort_values('Total Value (TAO)', ascending=False)
+    
+    # Create horizontal bar chart with dynamic height
+    num_subnets = len(subnet_df)
+    chart_height = max(600, num_subnets * 20)  # Minimum 600px, 20px per subnet
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Bar(
+        y=subnet_df['Subnet Name'],
+        x=subnet_df['Total Value (TAO)'],
+        orientation='h',
+        text=subnet_df['Total Value (TAO)'].apply(lambda x: f"{x:,.0f} TAO"),
+        textposition='auto',
+        marker=dict(
+            color=subnet_df['Total Value (TAO)'],
+            colorscale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            showscale=False
+        ),
+        hovertemplate='<b>%{y}</b><br>Total Value: %{x:,.2f} TAO<br>Stakers: %{customdata}<extra></extra>',
+        customdata=subnet_df['Number of Stakers']
+    ))
+    
+    fig.update_layout(
+        title=f'Alpha Value Distribution Across All Subnets ({len(subnet_df)} subnets)',
+        xaxis_title='Total Alpha Value (TAO)',
+        yaxis_title='Subnet',
+        height=chart_height,
+        showlegend=False,
+        yaxis=dict(autorange="reversed"),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)'
     )
     
-    # Display distributions for selected category
-    if category_filter == 'All':
-        create_distribution_charts(df, 'All', 'Detailed Analysis - All Wallets')
-    elif category_filter == 'Subnet Owner':
-        create_distribution_charts(df, 'Subnet Owner', 'Detailed Analysis - Subnet Owners')
-    elif category_filter == 'Validator':
-        create_distribution_charts(df, 'Validator', 'Detailed Analysis - Validators')
-    elif category_filter == 'Miner':
-        create_distribution_charts(df, 'Miner', 'Detailed Analysis - Miners')
-    elif category_filter == 'Investor':
-        create_distribution_charts(df, 'Investor', 'Detailed Analysis - Investors')
+    fig = apply_chart_theme(fig)
+    st.plotly_chart(fig, use_container_width=True)
     
-    # Analyse des staking proxies (à la fin)
-    create_staking_proxy_analysis(df)
+    # Display detailed table
+    st.markdown("### 📋 Detailed Subnet Data")
+    
+    display_df = subnet_df.copy()
+    display_df['Total Alpha Staked'] = display_df['Total Alpha Staked'].apply(lambda x: f"{x:,.2f}")
+    display_df['Total Value (TAO)'] = display_df['Total Value (TAO)'].apply(lambda x: f"{x:,.2f}")
+    display_df['Number of Stakers'] = display_df['Number of Stakers'].apply(lambda x: f"{x:,}")
+    
+    st.dataframe(display_df, use_container_width=True, hide_index=True, height=600)
+
+def main():
+    """Main application"""
+    st.markdown("<h1 class='main-header'>🔷 Bittensor Alpha Holders Analysis</h1>", unsafe_allow_html=True)
+    
+    # Load data
+    try:
+        data = load_data()
+        st.success(f"✅ Loaded {len(data):,} alpha holders")
+    except Exception as e:
+        st.error(f"❌ Error loading data: {str(e)}")
+        st.stop()
+    
+    # ============ GLOBAL FILTERS (Sidebar) ============
+    st.sidebar.header("🔍 Global Filters")
+    
+    # Filter by role
+    role_filter = st.sidebar.selectbox(
+        "Filter by Role",
+        options=["All", "Subnet Owner", "Investor", "Miner"],
+        index=0
+    )
+    
+    # Filter by staking proxy
+    proxy_filter = st.sidebar.selectbox(
+        "Filter by Staking Proxy",
+        options=["All", "True", "False"],
+        index=0
+    )
+    
+    # Filter by wallet value (TAO)
+    st.sidebar.divider()
+    st.sidebar.markdown("**💰 Filter by Total Wallet Value (TAO)**")
+    
+    # Get min and max wallet values
+    wallet_values = [h.get('total_wallet_value_tao', 0) for h in data]
+    min_wallet_value = min(wallet_values)
+    max_wallet_value = max(wallet_values)
+    
+    # Number inputs for wallet value range
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        min_value_input = st.number_input(
+            "Min (TAO)",
+            min_value=float(min_wallet_value),
+            max_value=float(max_wallet_value),
+            value=float(min_wallet_value),
+            step=1.0,
+            format="%.0f"
+        )
+    with col2:
+        max_value_input = st.number_input(
+            "Max (TAO)",
+            min_value=float(min_wallet_value),
+            max_value=float(max_wallet_value),
+            value=float(max_wallet_value),
+            step=1.0,
+            format="%.0f"
+        )
+    
+    value_range = (min_value_input, max_value_input)
+    
+    st.sidebar.divider()
+    st.sidebar.info("Filters apply to all sections EXCEPT 'Global Analysis by Role'")
+    
+    # ============ SECTION 1: GLOBAL ANALYSIS (NO FILTERS) ============
+    st.markdown("---")
+    st.markdown("## 📍 Section 1: Global Overview (Unfiltered)")
+    st.info("⚠️ This section shows ALL data without any filters applied")
+    
+    create_global_role_analysis(data)
+    
+    # ============ APPLY FILTERS FOR ALL FOLLOWING SECTIONS ============
+    st.markdown("---")
+    st.markdown("## 📍 Section 2+: Filtered Analysis")
+    st.warning(f"🔍 Filters Active: Role = {role_filter} | Staking Proxy = {proxy_filter} | Wallet Value = {value_range[0]:.0f}-{value_range[1]:.0f} TAO")
+    
+    # Apply role filter
+    filtered_data = filter_data_by_role(data, role_filter)
+    
+    # Apply staking proxy filter
+    filtered_data = filter_data_by_staking_proxy(filtered_data, proxy_filter)
+    
+    # Apply wallet value filter
+    filtered_data = filter_data_by_wallet_value(filtered_data, value_range[0], value_range[1])
+    
+    st.info(f"Showing {len(filtered_data):,} / {len(data):,} holders after filtering")
+    
+    # Display filtered data metrics
+    col1, col2, col3 = st.columns(3)
+    
+    # Calculate metrics
+    total_alpha_value = sum(h.get('total_alpha_value_tao', 0) for h in filtered_data)
+    num_proxy_set = sum(1 for h in filtered_data if h.get('has_staking_proxy', False))
+    
+    with col1:
+        st.metric(
+            label="💎 Total Alpha Value",
+            value=f"{total_alpha_value:,.1f} TAO"
+        )
+    
+    with col2:
+        st.metric(
+            label="👥 Number of Addresses",
+            value=f"{len(filtered_data):,}"
+        )
+    
+    with col3:
+        st.metric(
+            label="🔒 Proxy Set",
+            value=f"{num_proxy_set:,}"
+        )
+    
+    st.divider()
+    
+    # ============ SECTION 2: BREAKDOWN BY TRANSACTION COUNT ============
+    create_breakdown_by_tx(filtered_data)
+    
+    # ============ SECTION 3: BREAKDOWN BY NUMBER OF TOKENS ============
+    st.divider()
+    create_breakdown_by_tokens(filtered_data)
+    
+    # ============ SECTION 4: BREAKDOWN BY ALPHA PERCENTAGE ============
+    st.divider()
+    create_breakdown_by_alpha_percentage(filtered_data)
+    
+    # ============ ADDITIONAL: TOP HOLDERS TABLE ============
+    st.divider()
+    create_top_holders_table(filtered_data, n=20)
+    
+    # ============ SECTION 5: COMPLETE SUBNET BREAKDOWN ============
+    st.divider()
+    create_subnet_breakdown(filtered_data)
+    
+    # ============ ANNEXE: DETAILED DISTRIBUTIONS ============
+    st.markdown("---")
+    st.markdown("## 📑 Annexe: Detailed Distributions (Log Scale)")
+    st.info("ℹ️ These charts show the complete distribution with logarithmic scale for better visibility of all values")
+    
+    with st.expander("🔍 View Detailed Transaction & Token Distributions", expanded=False):
+        create_breakdown_by_tx_detailed(filtered_data)
+        st.divider()
+        create_breakdown_by_tokens_detailed(filtered_data)
     
     # Footer
-    st.markdown("""
-    <div style='text-align: center; color: #212278; font-weight: 600;'>
-        <p>Bittensor Alpha Holders Analysis | Data Source: Taostats API</p>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown(
+        "<p style='text-align: center; color: gray;'>Bittensor Alpha Holders Analysis Dashboard | "
+        f"Data contains {len(data):,} unique coldkeys</p>",
+        unsafe_allow_html=True
+    )
 
 if __name__ == "__main__":
     main()
