@@ -338,13 +338,13 @@ export async function getStakeUnstakeCount(
 }
 
 /**
- * Count transaction sessions (grouped by 1-hour windows)
- * Transactions within 1 hour of each other count as 1 session
+ * OPTIMIZED: Fetch transactions once and calculate both metrics
+ * Returns: { number_tx: total count, tx_time: session count }
  */
-export async function getStakeUnstakeSessionCount(
+export async function getStakeUnstakeMetrics(
   coldkey: string,
   days: number = 50
-): Promise<number> {
+): Promise<{ number_tx: number; tx_time: number }> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - days);
   
@@ -411,9 +411,14 @@ export async function getStakeUnstakeSessionCount(
     .filter(tx => new Date(tx.timestamp) >= cutoffDate)
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
   
-  if (recentTxs.length === 0) return 0;
+  // Metric 1: Total transaction count
+  const number_tx = recentTxs.length;
   
-  // Group transactions into 1-hour sessions
+  if (recentTxs.length === 0) {
+    return { number_tx: 0, tx_time: 0 };
+  }
+  
+  // Metric 2: Group transactions into 1-hour sessions
   let sessionCount = 1;
   let sessionStart = new Date(recentTxs[0].timestamp);
   
@@ -428,7 +433,7 @@ export async function getStakeUnstakeSessionCount(
     }
   }
   
-  return sessionCount;
+  return { number_tx, tx_time: sessionCount };
 }
 
 /**
@@ -478,19 +483,19 @@ export async function getStakeUnstakeCountsBatch(
 }
 
 /**
- * Batch fetch transaction session counts for multiple coldkeys
- * Sessions are grouped by 1-hour windows
+ * OPTIMIZED BATCH: Fetch transactions once per coldkey and calculate both metrics
+ * Returns: Map with both number_tx and tx_time for each coldkey
  */
-export async function getStakeUnstakeSessionCountsBatch(
+export async function getStakeUnstakeMetricsBatch(
   coldkeys: string[],
   days: number = 50
-): Promise<Map<string, number>> {
-  console.log(`\nFetching transaction session counts for ${coldkeys.length} coldkeys (last ${days} days)...`);
-  console.log('Sessions: Transactions within 1-hour windows count as 1 session');
+): Promise<Map<string, { number_tx: number; tx_time: number }>> {
+  console.log(`\nFetching transaction metrics for ${coldkeys.length} coldkeys (last ${days} days)...`);
+  console.log('Metrics: number_tx (total count) + tx_time (sessions grouped by 1h)');
   console.log('Rate limit: 200 calls/minute (~3 calls/second)');
   console.log(`Estimated time: ~${Math.ceil(coldkeys.length * 2 / 200)} minutes (avg 2 calls/coldkey)\n`);
   
-  const results = new Map<string, number>();
+  const results = new Map<string, { number_tx: number; tx_time: number }>();
   let successCount = 0;
   let errorCount = 0;
   
@@ -499,12 +504,12 @@ export async function getStakeUnstakeSessionCountsBatch(
     const ck = coldkeys[i];
     
     try {
-      const count = await getStakeUnstakeSessionCount(ck, days);
-      results.set(ck, count);
+      const metrics = await getStakeUnstakeMetrics(ck, days);
+      results.set(ck, metrics);
       successCount++;
       
-      if (count > 0) {
-        console.log(`  [${i+1}/${coldkeys.length}] ${ck.slice(0, 10)}...: ${count} sessions`);
+      if (metrics.number_tx > 0) {
+        console.log(`  [${i+1}/${coldkeys.length}] ${ck.slice(0, 10)}...: ${metrics.number_tx} transactions, ${metrics.tx_time} sessions`);
       }
       
       // Progress update every 50 wallets
@@ -514,11 +519,11 @@ export async function getStakeUnstakeSessionCountsBatch(
     } catch (error: any) {
       errorCount++;
       console.warn(`  [${i+1}/${coldkeys.length}] Error for ${ck.slice(0, 10)}...: ${error.message}`);
-      results.set(ck, 0); // Default to 0 on error
+      results.set(ck, { number_tx: 0, tx_time: 0 }); // Default to 0 on error
     }
   }
   
-  console.log(`\n✓ Transaction session counts fetched: ${successCount} success, ${errorCount} errors`);
+  console.log(`\n✓ Transaction metrics fetched: ${successCount} success, ${errorCount} errors`);
   
   return results;
 }

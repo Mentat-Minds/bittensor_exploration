@@ -1,6 +1,6 @@
 // Alpha holders analysis
 import type { StakeBalance, AlphaHolderAnalysis, AlphaHolding, ColdkeyClassification } from '../types';
-import { getAllStakeBalances, getAllLiquidityPositions, getStakeUnstakeCountsBatch, getStakeUnstakeSessionCountsBatch } from '../services/taostats';
+import { getAllStakeBalances, getAllLiquidityPositions, getStakeUnstakeMetricsBatch } from '../services/taostats';
 import { connectToChain, getFreeBalances, getStakingProxies, disconnectFromChain } from '../services/bittensor';
 import { fetchAllMetagraphs, classifyColdkeys } from '../services/walletClassification';
 
@@ -95,13 +95,9 @@ export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
   
   console.log(`\n✓ Found ${coldkeysWithAlpha.length} unique coldkeys with alpha stakes (liquidity excluded)`);
   
-  // Step 5: Fetch stake/unstake transaction counts (last 50 days)
-  console.log('\nStep 5: Fetching transaction counts...\n');
-  const txCounts = await getStakeUnstakeCountsBatch(coldkeysWithAlpha, 50);
-  
-  // Step 5b: Fetch transaction session counts (grouped by 1-hour windows)
-  console.log('\nStep 5b: Fetching transaction session counts...\n');
-  const txSessionCounts = await getStakeUnstakeSessionCountsBatch(coldkeysWithAlpha, 50);
+  // Step 5: Fetch transaction metrics (OPTIMIZED: one call for both number_tx and tx_time)
+  console.log('\nStep 5: Fetching transaction metrics (count + sessions)...\n');
+  const txMetrics = await getStakeUnstakeMetricsBatch(coldkeysWithAlpha, 50);
   
   // Step 6: Connect to chain and get free balances
   console.log('\nStep 6: Connecting to chain and fetching balances...\n');
@@ -186,8 +182,8 @@ export async function analyzeAlphaHolders(): Promise<AlphaHolderAnalysis[]> {
       free_tao: freeTao,
       total_wallet_value_tao: totalWalletValueTao,
       alpha_percentage: alphaPercentage,
-      number_tx: txCounts.get(coldkey) || 0,
-      tx_time: txSessionCounts.get(coldkey) || 0,
+      number_tx: txMetrics.get(coldkey)?.number_tx || 0,
+      tx_time: txMetrics.get(coldkey)?.tx_time || 0,
     });
   }
   

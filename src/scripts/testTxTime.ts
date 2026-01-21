@@ -1,5 +1,5 @@
 // Quick test script for tx_time metric
-import { getAllStakeBalances, getStakeUnstakeCountsBatch, getStakeUnstakeSessionCountsBatch } from '../services/taostats';
+import { getAllStakeBalances, getStakeUnstakeMetricsBatch } from '../services/taostats';
 
 async function testTxTime() {
   console.log('\n=== Quick Test: tx_time Metric ===\n');
@@ -22,32 +22,31 @@ async function testTxTime() {
   
   console.log(`\n✓ Selected ${testColdkeys.length} coldkeys for testing\n`);
   
-  // Step 2: Fetch transaction counts
-  console.log('Step 2: Fetching transaction counts (number_tx)...\n');
-  const txCounts = await getStakeUnstakeCountsBatch(testColdkeys, 50);
+  // Step 2: Fetch transaction metrics (OPTIMIZED: both number_tx and tx_time in one call)
+  console.log('Step 2: Fetching transaction metrics (count + sessions)...\n');
+  const txMetrics = await getStakeUnstakeMetricsBatch(testColdkeys, 50);
   
-  // Step 3: Fetch transaction session counts
-  console.log('\nStep 3: Fetching transaction session counts (tx_time)...\n');
-  const txSessionCounts = await getStakeUnstakeSessionCountsBatch(testColdkeys, 50);
-  
-  // Step 4: Display results
+  // Step 3: Display results
   console.log('\n\n=== RESULTS ===\n');
-  console.log('Coldkey | number_tx | tx_time | Ratio');
-  console.log('-'.repeat(70));
+  console.log('Full coldkey addresses with data:\n');
+  
+  let totalTx = 0;
+  let totalSessions = 0;
   
   for (const coldkey of testColdkeys) {
-    const numTx = txCounts.get(coldkey) || 0;
-    const txTime = txSessionCounts.get(coldkey) || 0;
-    const ratio = numTx > 0 ? (numTx / txTime).toFixed(2) : 'N/A';
+    const metrics = txMetrics.get(coldkey);
+    const numTx = metrics?.number_tx || 0;
+    const txTime = metrics?.tx_time || 0;
+    const ratio = numTx > 0 && txTime > 0 ? (numTx / txTime).toFixed(2) : 'N/A';
     
     if (numTx > 0 || txTime > 0) {
-      console.log(`${coldkey.slice(0, 10)}... | ${numTx.toString().padStart(9)} | ${txTime.toString().padStart(7)} | ${ratio}`);
+      console.log(`${coldkey},${numTx},${txTime},${ratio}`);
+      totalTx += numTx;
+      totalSessions += txTime;
     }
   }
   
   // Summary
-  const totalTx = Array.from(txCounts.values()).reduce((sum, val) => sum + val, 0);
-  const totalSessions = Array.from(txSessionCounts.values()).reduce((sum, val) => sum + val, 0);
   const avgRatio = totalSessions > 0 ? (totalTx / totalSessions).toFixed(2) : 'N/A';
   
   console.log('-'.repeat(70));
