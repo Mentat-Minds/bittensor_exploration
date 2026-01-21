@@ -12,7 +12,7 @@ const API_KEY = BITTENSOR_CONFIG.TAOSTAT_API_KEY;
  */
 export async function getAllStakeBalances(): Promise<StakeBalance[]> {
   console.log('Fetching all stake balances from Taostats API...');
-  console.log('Rate limit: 60 calls/minute (1 call/second)\n');
+  console.log('Rate limit: 200 calls/minute (~3 calls/second)\n');
   
   const allStakes: StakeBalance[] = [];
   
@@ -22,7 +22,7 @@ export async function getAllStakeBalances(): Promise<StakeBalance[]> {
   
   console.log(`Fetching stakes for netuids 0-${MAX_NETUID} with pagination (stops at 0.1 TAO)...`);
   
-  // Process SEQUENTIALLY to respect rate limit (60 calls/minute = 1 call/sec)
+  // Process SEQUENTIALLY to respect rate limit (200 calls/minute = ~3 calls/sec)
   for (let i = 0; i < netuids.length; i++) {
     const netuid = netuids[i];
     
@@ -107,13 +107,6 @@ export async function getAllStakeBalances(): Promise<StakeBalance[]> {
       }
     } catch (error: any) {
       if (error.message.includes('404')) continue; // Skip non-existent subnets
-      
-      // Si erreur 429 après tous les retries, FAIL HARD
-      if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
-        console.error(`\n❌ ERREUR CRITIQUE: Rate limit non résolu pour netuid ${netuid} après tous les retries`);
-        throw new Error(`Rate limit error après retries pour netuid ${netuid}: ${error.message}`);
-      }
-      
       console.warn(`  [${i+1}/${netuids.length}] Warning for netuid ${netuid}:`, error.message);
     }
   }
@@ -146,8 +139,64 @@ export async function getStakeBalanceByColdkey(coldkey: string): Promise<StakeBa
   return (Array.isArray(data) ? data : []) as StakeBalance[];
 }
 
-// LIQUIDITY POSITIONS REMOVED - Not needed for current analysis
-// Liquidity positions are very rare and not significant for alpha holder analysis
+/**
+ * Fetch all liquidity positions from Taostats API
+ */
+export async function getAllLiquidityPositions(): Promise<any[]> {
+  console.log('\nFetching all liquidity positions from Taostats API...');
+  console.log('Rate limit: 200 calls/minute (~3 calls/second)\n');
+  
+  const allPositions: any[] = [];
+  
+  // Fetch liquidity positions for all subnets
+  const MAX_NETUID = 100;
+  const netuids = Array.from({ length: MAX_NETUID + 1 }, (_, i) => i);
+  
+  console.log(`Fetching liquidity positions for netuids 0-${MAX_NETUID} (101 requests at ~3/sec = ~30 seconds)...`);
+  
+  // Process SEQUENTIALLY to respect rate limit
+  for (let i = 0; i < netuids.length; i++) {
+    const netuid = netuids[i];
+    
+    try {
+      const positions = await taostatsRateLimiter.execute(async () => {
+        const url = `${API_URL}/api/dtao/liquidity/position/v1?netuid=${netuid}&limit=10000`;
+        
+        const response = await fetch(url, {
+          headers: {
+            'Authorization': API_KEY,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) return [];
+          throw new Error(`Taostats API error for netuid ${netuid}: ${response.status} ${response.statusText}`);
+        }
+
+        const responseData = await response.json() as any;
+        const data = responseData.data || responseData;
+        
+        if (Array.isArray(data) && data.length > 0) {
+          return data;
+        }
+        return [];
+      }, `netuid ${netuid} LP`);
+      
+      if (positions.length > 0) {
+        allPositions.push(...positions);
+        console.log(`  [${i+1}/${netuids.length}] Netuid ${netuid}: ${positions.length} liquidity positions (Total: ${allPositions.length})`);
+      }
+    } catch (error: any) {
+      if (error.message.includes('404')) continue;
+      console.warn(`  [${i+1}/${netuids.length}] Warning for netuid ${netuid}:`, error.message);
+    }
+  }
+  
+  console.log(`✓ Fetched ${allPositions.length} total liquidity positions`);
+  
+  return allPositions;
+}
 
 /**
  * Interface for delegation transaction response from Taostats
@@ -289,8 +338,102 @@ export async function getStakeUnstakeCount(
 }
 
 /**
+ * Count transaction sessions (grouped by 1-hour windows)
+ * Transactions within 1 hour of each other count as 1 session
+ */
+export async function getStakeUnstakeSessionCount(
+  coldkey: string,
+  days: number = 50
+): Promise<number> {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - days);
+  
+  // Rate-limited fetch function
+  const fetchPage = async (page: number, limit: number): Promise<DelegationResponse> => {
+    return await taostatsRateLimiter.execute(async () => {
+      const url = `${API_URL}/api/delegation/v1?nominator=${coldkey}&page=${page}&per_page=${limit}`;
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': API_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      return await response.json() as DelegationResponse;
+    });
+  };
+  
+  // Fetch all transactions
+  const allTransactions: DelegationTransaction[] = [];
+  let currentPage = 1;
+  
+  // Peek first page to check order
+  const firstPage: DelegationResponse = await fetchPage(1, 100);
+  const isDescOrder = firstPage.data.length >= 2 && 
+    new Date(firstPage.data[0].timestamp) > new Date(firstPage.data[1].timestamp);
+  
+  if (isDescOrder) {
+    // DESC order: fetch until we hit cutoff date
+    let pageData = firstPage;
+    
+    while (true) {
+      const recentInPage = pageData.data.filter(tx => 
+        new Date(tx.timestamp) >= cutoffDate
+      );
+      allTransactions.push(...recentInPage);
+      
+      const lastTx = pageData.data[pageData.data.length - 1];
+      if (new Date(lastTx.timestamp) < cutoffDate || !pageData.pagination.next_page) {
+        break;
+      }
+      
+      currentPage++;
+      pageData = await fetchPage(currentPage, 100);
+    }
+  } else {
+    // ASC order: fetch all pages then filter
+    let pageData = firstPage;
+    allTransactions.push(...pageData.data);
+    
+    while (pageData.pagination.next_page) {
+      currentPage++;
+      pageData = await fetchPage(currentPage, 100);
+      allTransactions.push(...pageData.data);
+    }
+  }
+  
+  // Filter by date and sort by timestamp
+  const recentTxs = allTransactions
+    .filter(tx => new Date(tx.timestamp) >= cutoffDate)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  
+  if (recentTxs.length === 0) return 0;
+  
+  // Group transactions into 1-hour sessions
+  let sessionCount = 1;
+  let sessionStart = new Date(recentTxs[0].timestamp);
+  
+  for (let i = 1; i < recentTxs.length; i++) {
+    const currentTxTime = new Date(recentTxs[i].timestamp);
+    const hoursSinceSessionStart = (currentTxTime.getTime() - sessionStart.getTime()) / (1000 * 60 * 60);
+    
+    // If more than 1 hour since session start, it's a new session
+    if (hoursSinceSessionStart > 1) {
+      sessionCount++;
+      sessionStart = currentTxTime;
+    }
+  }
+  
+  return sessionCount;
+}
+
+/**
  * Batch fetch stake/unstake counts for multiple coldkeys
- * Rate limited: 60 calls/minute
+ * Rate limited: 200 calls/minute
  * Each coldkey may require multiple API calls (1 peek + N pages)
  */
 export async function getStakeUnstakeCountsBatch(
@@ -298,8 +441,8 @@ export async function getStakeUnstakeCountsBatch(
   days: number = 50
 ): Promise<Map<string, number>> {
   console.log(`\nFetching stake/unstake transaction counts for ${coldkeys.length} coldkeys (last ${days} days)...`);
-  console.log('Rate limit: 60 calls/minute (1 call/second)');
-  console.log(`Estimated time: ~${Math.ceil(coldkeys.length * 2 / 60)} minutes (avg 2 calls/coldkey)\n`);
+  console.log('Rate limit: 200 calls/minute (~3 calls/second)');
+  console.log(`Estimated time: ~${Math.ceil(coldkeys.length * 2 / 200)} minutes (avg 2 calls/coldkey)\n`);
   
   const results = new Map<string, number>();
   let successCount = 0;
@@ -324,19 +467,58 @@ export async function getStakeUnstakeCountsBatch(
       }
     } catch (error: any) {
       errorCount++;
-      
-      // Si erreur 429 après tous les retries, FAIL HARD
-      if (error.message.includes('429') || error.message.includes('Too Many Requests')) {
-        console.error(`\n❌ ERREUR CRITIQUE: Rate limit non résolu pour coldkey ${ck.slice(0, 10)}... après tous les retries`);
-        throw new Error(`Rate limit error après retries pour coldkey ${ck}: ${error.message}`);
-      }
-      
       console.warn(`  [${i+1}/${coldkeys.length}] Error for ${ck.slice(0, 10)}...: ${error.message}`);
-      results.set(ck, 0); // Default to 0 on error (non 429)
+      results.set(ck, 0); // Default to 0 on error
     }
   }
   
   console.log(`\n✓ Transaction counts fetched: ${successCount} success, ${errorCount} errors`);
+  
+  return results;
+}
+
+/**
+ * Batch fetch transaction session counts for multiple coldkeys
+ * Sessions are grouped by 1-hour windows
+ */
+export async function getStakeUnstakeSessionCountsBatch(
+  coldkeys: string[],
+  days: number = 50
+): Promise<Map<string, number>> {
+  console.log(`\nFetching transaction session counts for ${coldkeys.length} coldkeys (last ${days} days)...`);
+  console.log('Sessions: Transactions within 1-hour windows count as 1 session');
+  console.log('Rate limit: 200 calls/minute (~3 calls/second)');
+  console.log(`Estimated time: ~${Math.ceil(coldkeys.length * 2 / 200)} minutes (avg 2 calls/coldkey)\n`);
+  
+  const results = new Map<string, number>();
+  let successCount = 0;
+  let errorCount = 0;
+  
+  // Process SEQUENTIALLY to avoid rate limit issues
+  for (let i = 0; i < coldkeys.length; i++) {
+    const ck = coldkeys[i];
+    
+    try {
+      const count = await getStakeUnstakeSessionCount(ck, days);
+      results.set(ck, count);
+      successCount++;
+      
+      if (count > 0) {
+        console.log(`  [${i+1}/${coldkeys.length}] ${ck.slice(0, 10)}...: ${count} sessions`);
+      }
+      
+      // Progress update every 50 wallets
+      if ((i + 1) % 50 === 0) {
+        console.log(`  Progress: ${i+1}/${coldkeys.length} coldkeys processed (${successCount} success, ${errorCount} errors)`);
+      }
+    } catch (error: any) {
+      errorCount++;
+      console.warn(`  [${i+1}/${coldkeys.length}] Error for ${ck.slice(0, 10)}...: ${error.message}`);
+      results.set(ck, 0); // Default to 0 on error
+    }
+  }
+  
+  console.log(`\n✓ Transaction session counts fetched: ${successCount} success, ${errorCount} errors`);
   
   return results;
 }

@@ -39,6 +39,7 @@ export interface AlphaHolderAnalysis {
   total_wallet_value_tao: number;
   alpha_percentage: number;
   number_tx: number; // Number of stake/unstake transactions in the last 50 days
+  tx_time: number; // Number of transaction sessions (grouped by 1-hour windows) in the last 50 days
 }
 
 // Metagraph API types
