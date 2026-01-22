@@ -146,15 +146,23 @@ def create_global_role_analysis(data: List[Dict]):
     
     with col1:
         # Bar chart: Total TAO by Role
+        total = role_df['Total Alpha (TAO)'].sum()
+        role_df['Percentage'] = (role_df['Total Alpha (TAO)'] / total * 100).round(1)
+        
         fig = px.bar(
             role_df,
             x='Role',
             y='Total Alpha (TAO)',
             title='Total Alpha Value (TAO) by Role',
             color='Total Alpha (TAO)',
-            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            text='Percentage'
         )
-        fig.update_traces(hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_traces(
+            hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -162,15 +170,23 @@ def create_global_role_analysis(data: List[Dict]):
     
     with col2:
         # Bar chart: Number of Coldkeys by Role
+        total_coldkeys = role_df['Coldkeys'].sum()
+        role_df['Percentage_CK'] = (role_df['Coldkeys'] / total_coldkeys * 100).round(1)
+        
         fig = px.bar(
             role_df,
             x='Role',
             y='Coldkeys',
             title='Number of Coldkeys by Role',
             color='Coldkeys',
-            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            text='Percentage_CK'
         )
-        fig.update_traces(hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_traces(
+            hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -208,6 +224,12 @@ def create_breakdown_by_tx(data: List[Dict]):
     
     df = pd.DataFrame(tx_stats)
     
+    # Calculate percentages
+    total_alpha = df['Total Alpha (TAO)'].sum()
+    total_coldkeys = df['Coldkeys'].sum()
+    df['Pct_Alpha'] = (df['Total Alpha (TAO)'] / total_alpha * 100).round(1)
+    df['Pct_Coldkeys'] = (df['Coldkeys'] / total_coldkeys * 100).round(1)
+    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -218,9 +240,14 @@ def create_breakdown_by_tx(data: List[Dict]):
             y='Total Alpha (TAO)',
             title='Alpha Value by Transaction Count',
             color='Total Alpha (TAO)',
-            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            text='Pct_Alpha'
         )
-        fig.update_traces(hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_traces(
+            hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -234,9 +261,14 @@ def create_breakdown_by_tx(data: List[Dict]):
             y='Coldkeys',
             title='Number of Coldkeys by Transaction Count',
             color='Coldkeys',
-            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            text='Pct_Coldkeys'
         )
-        fig.update_traces(hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_traces(
+            hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -274,6 +306,12 @@ def create_breakdown_by_tx_time(data: List[Dict]):
     
     df = pd.DataFrame(tx_time_stats)
     
+    # Calculate percentages
+    total_alpha = df['Total Alpha (TAO)'].sum()
+    total_coldkeys = df['Coldkeys'].sum()
+    df['Pct_Alpha'] = (df['Total Alpha (TAO)'] / total_alpha * 100).round(1)
+    df['Pct_Coldkeys'] = (df['Coldkeys'] / total_coldkeys * 100).round(1)
+    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -284,9 +322,14 @@ def create_breakdown_by_tx_time(data: List[Dict]):
             y='Total Alpha (TAO)',
             title='Alpha Value by Transaction Sessions Count',
             color='Total Alpha (TAO)',
-            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            text='Pct_Alpha'
         )
-        fig.update_traces(hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_traces(
+            hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -300,9 +343,14 @@ def create_breakdown_by_tx_time(data: List[Dict]):
             y='Coldkeys',
             title='Number of Coldkeys by Transaction Sessions Count',
             color='Coldkeys',
-            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            text='Pct_Coldkeys'
         )
-        fig.update_traces(hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_traces(
+            hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -335,6 +383,12 @@ def create_breakdown_by_tx_detailed(data: List[Dict]):
     
     df = pd.DataFrame(tx_data)
     
+    # Calculate percentages
+    total_alpha = df['Total Alpha (TAO)'].sum()
+    total_coldkeys = df['Coldkeys'].sum()
+    df['Pct_Alpha'] = (df['Total Alpha (TAO)'] / total_alpha * 100).round(1)
+    df['Pct_Coldkeys'] = (df['Coldkeys'] / total_coldkeys * 100).round(1)
+    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -346,9 +400,14 @@ def create_breakdown_by_tx_detailed(data: List[Dict]):
             title='Alpha Value by Transaction Count (Log Scale)',
             color='Total Alpha (TAO)',
             color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
-            log_y=True
+            log_y=True,
+            text='Pct_Alpha'
         )
-        fig.update_traces(hovertemplate='TX: %{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_traces(
+            hovertemplate='TX: %{x}<br>%{y:.1f} TAO<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -363,9 +422,14 @@ def create_breakdown_by_tx_detailed(data: List[Dict]):
             title='Number of Coldkeys by Transaction Count (Log Scale)',
             color='Coldkeys',
             color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
-            log_y=True
+            log_y=True,
+            text='Pct_Coldkeys'
         )
-        fig.update_traces(hovertemplate='TX: %{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_traces(
+            hovertemplate='TX: %{x}<br>%{y:.0f} Coldkeys<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -398,6 +462,12 @@ def create_breakdown_by_tx_time_detailed(data: List[Dict]):
     
     df = pd.DataFrame(tx_time_data)
     
+    # Calculate percentages
+    total_alpha = df['Total Alpha (TAO)'].sum()
+    total_coldkeys = df['Coldkeys'].sum()
+    df['Pct_Alpha'] = (df['Total Alpha (TAO)'] / total_alpha * 100).round(1)
+    df['Pct_Coldkeys'] = (df['Coldkeys'] / total_coldkeys * 100).round(1)
+    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -409,9 +479,14 @@ def create_breakdown_by_tx_time_detailed(data: List[Dict]):
             title='Alpha Value by Transaction Sessions Count (Log Scale)',
             color='Total Alpha (TAO)',
             color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
-            log_y=True
+            log_y=True,
+            text='Pct_Alpha'
         )
-        fig.update_traces(hovertemplate='Sessions: %{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_traces(
+            hovertemplate='Sessions: %{x}<br>%{y:.1f} TAO<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -426,9 +501,14 @@ def create_breakdown_by_tx_time_detailed(data: List[Dict]):
             title='Number of Coldkeys by Transaction Sessions Count (Log Scale)',
             color='Coldkeys',
             color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
-            log_y=True
+            log_y=True,
+            text='Pct_Coldkeys'
         )
-        fig.update_traces(hovertemplate='Sessions: %{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_traces(
+            hovertemplate='Sessions: %{x}<br>%{y:.0f} Coldkeys<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -465,6 +545,12 @@ def create_breakdown_by_tokens(data: List[Dict]):
     
     df = pd.DataFrame(token_stats)
     
+    # Calculate percentages
+    total_alpha = df['Total Alpha (TAO)'].sum()
+    total_coldkeys = df['Coldkeys'].sum()
+    df['Pct_Alpha'] = (df['Total Alpha (TAO)'] / total_alpha * 100).round(1)
+    df['Pct_Coldkeys'] = (df['Coldkeys'] / total_coldkeys * 100).round(1)
+    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -475,9 +561,14 @@ def create_breakdown_by_tokens(data: List[Dict]):
             y='Total Alpha (TAO)',
             title='Alpha Value by Number of Tokens',
             color='Total Alpha (TAO)',
-            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            text='Pct_Alpha'
         )
-        fig.update_traces(hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_traces(
+            hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -491,9 +582,14 @@ def create_breakdown_by_tokens(data: List[Dict]):
             y='Coldkeys',
             title='Number of Coldkeys by Token Count',
             color='Coldkeys',
-            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            text='Pct_Coldkeys'
         )
-        fig.update_traces(hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_traces(
+            hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -526,6 +622,12 @@ def create_breakdown_by_tokens_detailed(data: List[Dict]):
     
     df = pd.DataFrame(token_data)
     
+    # Calculate percentages
+    total_alpha = df['Total Alpha (TAO)'].sum()
+    total_coldkeys = df['Coldkeys'].sum()
+    df['Pct_Alpha'] = (df['Total Alpha (TAO)'] / total_alpha * 100).round(1)
+    df['Pct_Coldkeys'] = (df['Coldkeys'] / total_coldkeys * 100).round(1)
+    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -537,9 +639,14 @@ def create_breakdown_by_tokens_detailed(data: List[Dict]):
             title='Alpha Value by Number of Tokens (Log Scale)',
             color='Total Alpha (TAO)',
             color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
-            log_y=True
+            log_y=True,
+            text='Pct_Alpha'
         )
-        fig.update_traces(hovertemplate='Tokens: %{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_traces(
+            hovertemplate='Tokens: %{x}<br>%{y:.1f} TAO<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -554,9 +661,14 @@ def create_breakdown_by_tokens_detailed(data: List[Dict]):
             title='Number of Coldkeys by Token Count (Log Scale)',
             color='Coldkeys',
             color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
-            log_y=True
+            log_y=True,
+            text='Pct_Coldkeys'
         )
-        fig.update_traces(hovertemplate='Tokens: %{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_traces(
+            hovertemplate='Tokens: %{x}<br>%{y:.0f} Coldkeys<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -590,6 +702,12 @@ def create_breakdown_by_alpha_percentage(data: List[Dict]):
     
     df = pd.DataFrame(alpha_stats)
     
+    # Calculate percentages
+    total_alpha = df['Total Alpha (TAO)'].sum()
+    total_coldkeys = df['Coldkeys'].sum()
+    df['Pct_Alpha'] = (df['Total Alpha (TAO)'] / total_alpha * 100).round(1)
+    df['Pct_Coldkeys'] = (df['Coldkeys'] / total_coldkeys * 100).round(1)
+    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -600,9 +718,14 @@ def create_breakdown_by_alpha_percentage(data: List[Dict]):
             y='Total Alpha (TAO)',
             title='Alpha Value by Alpha Percentage Range',
             color='Total Alpha (TAO)',
-            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            text='Pct_Alpha'
         )
-        fig.update_traces(hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_traces(
+            hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -616,9 +739,14 @@ def create_breakdown_by_alpha_percentage(data: List[Dict]):
             y='Coldkeys',
             title='Number of Coldkeys by Alpha Percentage',
             color='Coldkeys',
-            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            text='Pct_Coldkeys'
         )
-        fig.update_traces(hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_traces(
+            hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
