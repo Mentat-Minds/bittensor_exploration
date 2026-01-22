@@ -242,6 +242,72 @@ def create_breakdown_by_tx(data: List[Dict]):
         fig = apply_chart_theme(fig)
         st.plotly_chart(fig, use_container_width=True)
 
+def create_breakdown_by_tx_time(data: List[Dict]):
+    """Create breakdown by number of transaction sessions (tx_time) (10 categories)"""
+    st.markdown("<h2>⏰ Breakdown by Transaction Sessions (tx_time)</h2>", unsafe_allow_html=True)
+    
+    # Define TX sessions categories (same as number_tx)
+    categories = [
+        ('0', 0, 0),
+        ('1-5', 1, 5),
+        ('6-10', 6, 10),
+        ('11-20', 11, 20),
+        ('21-30', 21, 30),
+        ('31-50', 31, 50),
+        ('51-75', 51, 75),
+        ('76-100', 76, 100),
+        ('101-200', 101, 200),
+        ('201-500', 201, 500),
+        ('500+', 501, float('inf'))
+    ]
+    
+    # Aggregate stats
+    tx_time_stats = []
+    for cat_name, min_sessions, max_sessions in categories:
+        holders = [h for h in data if min_sessions <= h.get('tx_time', 0) <= max_sessions]
+        total_alpha = sum(h['total_alpha_value_tao'] for h in holders)
+        tx_time_stats.append({
+            'Category': cat_name,
+            'Coldkeys': len(holders),
+            'Total Alpha (TAO)': total_alpha
+        })
+    
+    df = pd.DataFrame(tx_time_stats)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Alpha value by TX sessions category
+        fig = px.bar(
+            df,
+            x='Category',
+            y='Total Alpha (TAO)',
+            title='Alpha Value by Transaction Sessions Count',
+            color='Total Alpha (TAO)',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+        )
+        fig.update_traces(hovertemplate='%{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        # Number of coldkeys by TX sessions category
+        fig = px.bar(
+            df,
+            x='Category',
+            y='Coldkeys',
+            title='Number of Coldkeys by Transaction Sessions Count',
+            color='Coldkeys',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']]
+        )
+        fig.update_traces(hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+
 def create_breakdown_by_tx_detailed(data: List[Dict]):
     """Create breakdown by number of transactions (all values with log scale)"""
     st.markdown("<h3>📊 Detailed Transaction Count Distribution</h3>", unsafe_allow_html=True)
@@ -300,6 +366,69 @@ def create_breakdown_by_tx_detailed(data: List[Dict]):
             log_y=True
         )
         fig.update_traces(hovertemplate='TX: %{x}<br>%{y:.0f} Coldkeys<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+
+def create_breakdown_by_tx_time_detailed(data: List[Dict]):
+    """Create breakdown by number of transaction sessions (tx_time) (all values with log scale)"""
+    st.markdown("<h3>⏰ Detailed Transaction Sessions Distribution</h3>", unsafe_allow_html=True)
+    
+    # Group by exact transaction sessions count
+    tx_time_stats = {}
+    for holder in data:
+        tx_time_count = holder.get('tx_time', 0)
+        if tx_time_count not in tx_time_stats:
+            tx_time_stats[tx_time_count] = {
+                'holders': [],
+                'total_alpha': 0
+            }
+        tx_time_stats[tx_time_count]['holders'].append(holder)
+        tx_time_stats[tx_time_count]['total_alpha'] += holder['total_alpha_value_tao']
+    
+    # Convert to DataFrame
+    tx_time_data = []
+    for tx_time_count, stats in sorted(tx_time_stats.items()):
+        tx_time_data.append({
+            'Sessions Count': tx_time_count,
+            'Coldkeys': len(stats['holders']),
+            'Total Alpha (TAO)': stats['total_alpha']
+        })
+    
+    df = pd.DataFrame(tx_time_data)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Alpha value by TX sessions count
+        fig = px.bar(
+            df,
+            x='Sessions Count',
+            y='Total Alpha (TAO)',
+            title='Alpha Value by Transaction Sessions Count (Log Scale)',
+            color='Total Alpha (TAO)',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            log_y=True
+        )
+        fig.update_traces(hovertemplate='Sessions: %{x}<br>%{y:.1f} TAO<extra></extra>')
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        # Number of coldkeys by TX sessions count
+        fig = px.bar(
+            df,
+            x='Sessions Count',
+            y='Coldkeys',
+            title='Number of Coldkeys by Transaction Sessions Count (Log Scale)',
+            color='Coldkeys',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            log_y=True
+        )
+        fig.update_traces(hovertemplate='Sessions: %{x}<br>%{y:.0f} Coldkeys<extra></extra>')
         fig.update_coloraxes(showscale=False)
         fig.update_xaxes(title_text='')
         fig = apply_chart_theme(fig)
@@ -721,6 +850,10 @@ def main():
     # ============ SECTION 2: BREAKDOWN BY TRANSACTION COUNT ============
     create_breakdown_by_tx(filtered_data)
     
+    # ============ SECTION 2b: BREAKDOWN BY TRANSACTION SESSIONS (tx_time) ============
+    st.divider()
+    create_breakdown_by_tx_time(filtered_data)
+    
     # ============ SECTION 3: BREAKDOWN BY NUMBER OF TOKENS ============
     st.divider()
     create_breakdown_by_tokens(filtered_data)
@@ -744,6 +877,8 @@ def main():
     
     with st.expander("🔍 View Detailed Transaction & Token Distributions", expanded=False):
         create_breakdown_by_tx_detailed(filtered_data)
+        st.divider()
+        create_breakdown_by_tx_time_detailed(filtered_data)
         st.divider()
         create_breakdown_by_tokens_detailed(filtered_data)
     
