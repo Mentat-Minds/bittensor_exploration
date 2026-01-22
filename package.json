@@ -7,8 +7,19 @@
     "build": "tsc",
     "dev": "ts-node src/index.ts",
     "start": "node dist/index.js",
-    "test:setup": "ts-node src/scripts/testSetup.ts",
-    "analyze:alpha": "ts-node src/scripts/analyzeAlpha.ts"
+    "test:setup": "npm run build && node dist/scripts/testSetup.js",
+    "test:tx": "npm run build && node dist/scripts/testTxCount.js",
+    "test:neuron-query": "npm run build && node dist/scripts/testNeuronQuery.js",
+    "test:neuron-discover": "npm run build && node dist/scripts/discoverNeuronAPI.js",
+    "test:rpc": "npm run build && node dist/scripts/testRPCMethods.js",
+    "test:final-neuron": "npm run build && node dist/scripts/finalNeuronTest.js",
+    "test:nominators": "npm run build && node dist/scripts/analyzeHotkeyNominators.js",
+    "test:compare-stake": "npm run build && node dist/scripts/compareStakeVsRegistered.js",
+    "test:neurons": "npm run build && node dist/scripts/testNeuronApproaches.js",
+    "analyze:alpha": "npm run build && node dist/scripts/analyzeAlpha.js",
+    "add:roles": "npm run build && node dist/scripts/addRolesToExistingData.js",
+    "map:owners": "npm run build && node dist/scripts/mapSubnetOwners.js",
+    "debug:coldkey": "npm run build && node dist/scripts/debugColdkey.js"
   },
   "keywords": [
     "bittensor",

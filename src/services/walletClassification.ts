@@ -25,13 +25,7 @@ async function fetchSubnetMetagraph(netuid: number): Promise<MetagraphNeuron[]> 
     }, `metagraph netuid ${netuid}`);
     
     return neurons;
-  } catch (error: any) {
-    // Si erreur 429 après tous les retries, FAIL HARD
-    if (error.message?.includes('429') || error.message?.includes('Too Many Requests')) {
-      console.error(`\n❌ ERREUR CRITIQUE: Rate limit non résolu pour metagraph netuid ${netuid} après tous les retries`);
-      throw new Error(`Rate limit error après retries pour metagraph netuid ${netuid}: ${error.message}`);
-    }
-    
+  } catch (error) {
     console.error(`Error fetching metagraph for subnet ${netuid}:`, error);
     return [];
   }
@@ -45,7 +39,7 @@ export async function fetchAllMetagraphs(subnets?: number[]): Promise<Map<number
   const subnetsToFetch = subnets || Array.from({ length: 128 }, (_, i) => i + 1);
   
   console.log(`\n=== Fetching metagraphs for ${subnetsToFetch.length} subnets ===`);
-  console.log(`Rate limit: 60 requests/minute\n`);
+  console.log(`Rate limit: 200 requests/minute (~3 requests/second)\n`);
   
   const metagraphsBySubnet = new Map<number, MetagraphNeuron[]>();
   

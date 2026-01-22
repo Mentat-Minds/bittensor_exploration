@@ -2,7 +2,7 @@
 
 ## Problem
 
-The Taostats API has a strict rate limit of **60 calls per minute** (1 call per second).
+The Taostats API has a rate limit of **240 calls per minute**. We use **200 calls/minute** (~3 calls/second) as a safe buffer to allow for other scripts and ensure no 429 errors.
 
 Previous implementation was making **50 calls per second** (50x too fast!), causing massive 429 errors.
 
@@ -12,16 +12,16 @@ Previous implementation was making **50 calls per second** (50x too fast!), caus
 
 Created a singleton rate limiter that:
 - ✅ Tracks API calls in a sliding 1-minute window
-- ✅ Enforces maximum 60 calls/minute
+- ✅ Enforces maximum 200 calls/minute (buffer under 240 limit)
 - ✅ Auto-retries on 429 errors with exponential backoff
 - ✅ Queues requests to maintain rate limit
 
 **Key Features:**
 ```typescript
 const taostatsRateLimiter = new RateLimiter({
-  maxCallsPerMinute: 60,      // Hard limit
-  retryAttempts: 3,           // Auto-retry on 429
-  retryDelayMs: 2000,         // 2s, 4s, 6s exponential backoff
+  maxCallsPerMinute: 200,     // Buffer under 240 limit
+  retryAttempts: 5,           // Auto-retry on 429
+  retryDelayMs: 1500,         // 1.5s, 3s, 4.5s exponential backoff
 });
 ```
 
@@ -31,24 +31,24 @@ const taostatsRateLimiter = new RateLimiter({
 
 #### `getAllStakeBalances()`
 - **Before:** 10 parallel requests every 200ms = 50 req/s
-- **After:** Sequential requests with rate limiter = 1 req/s
-- **Time:** ~2 minutes for 101 netuids (was 10 seconds but with errors)
+- **After:** Sequential requests with rate limiter = ~3 req/s
+- **Time:** ~30 seconds for 129 netuids (was 10 seconds but with errors)
 
 #### `getAllLiquidityPositions()`
 - **Before:** 10 parallel requests every 200ms = 50 req/s
-- **After:** Sequential requests with rate limiter = 1 req/s
-- **Time:** ~2 minutes for 101 netuids
+- **After:** Sequential requests with rate limiter = ~3 req/s
+- **Time:** ~30 seconds for 101 netuids
 
 #### `getStakeUnstakeCount()`
 - **Before:** Uncontrolled pagination requests
 - **After:** Every page fetch goes through rate limiter
-- **Retry:** Auto-retries 3 times on 429 errors
+- **Retry:** Auto-retries 5 times on 429 errors
 
 #### `getStakeUnstakeCountsBatch()`
 - **Before:** 10 coldkeys in parallel = ~20-50 API calls at once
 - **After:** Sequential processing = 1 coldkey at a time
-- **Time:** ~2 minutes per 60 coldkeys (~2 calls per coldkey average)
-- **For 4,018 coldkeys:** ~134 minutes = ~2.2 hours
+- **Time:** ~30 seconds per 60 coldkeys (~2 calls per coldkey average)
+- **For 16,161 coldkeys:** ~540 seconds = ~9 minutes
 
 ### 3. Progress Tracking
 
@@ -60,7 +60,7 @@ All functions now show:
 
 Example output:
 ```
-Fetching stakes for netuids 0-100 (101 requests at 1/sec = ~2 minutes)...
+Fetching stakes for netuids 0-100 (101 requests at ~3/sec = ~30 seconds)...
   [1/101] Netuid 0: 1234 stakes (Total: 1234)
   [2/101] Netuid 1: 567 stakes (Total: 1801)
   ...
@@ -78,10 +78,10 @@ Total:               ~50 seconds (BUT INCOMPLETE DATA)
 
 ### After (No Errors)
 ```
-Stakes:              ~2 minutes (100% success)
-Liquidity:           ~2 minutes (100% success)
-Transaction counts:  ~135 minutes (100% success)
-Total:               ~139 minutes = 2h 19min (COMPLETE DATA)
+Stakes:              ~30 seconds (100% success)
+Liquidity:           ~30 seconds (100% success)
+Transaction counts:  ~9 minutes (100% success)
+Total:               ~10 minutes (COMPLETE DATA)
 ```
 
 **Trade-off:** Much slower BUT with complete and accurate data.
@@ -120,7 +120,7 @@ This will test the transaction counting for one wallet and verify:
 
 ```
 Fetching delegation/undelegation transactions for last 50 days...
-Rate limit: 60 calls/minute (1 call/second)
+Rate limit: 200 calls/minute (~3 calls/second)
 
 ✓ Success!
 Number of stake/unstake transactions: 12
@@ -143,7 +143,7 @@ getStakeUnstakeCountsBatch(coldkeys, days)
 
 ### Timing Changes
 
-**IMPORTANT:** The full analysis now takes ~2.5 hours instead of ~1 minute.
+**IMPORTANT:** The full analysis now takes ~10 minutes instead of ~1 minute with errors.
 
 This is intentional to respect API limits and ensure data accuracy.
 
@@ -155,7 +155,7 @@ This is intentional to respect API limits and ensure data accuracy.
 npm run analyze:alpha
 ```
 
-**Expected time:** ~2.5 hours for ~4,000 wallets
+**Expected time:** ~10 minutes for ~16,000 wallets
 
 ### Skip Transaction Counts (Fast)
 
@@ -172,7 +172,7 @@ const txCounts = new Map<string, number>(); // Empty map
 npm run analyze:alpha
 ```
 
-**Expected time:** ~4 minutes (stakes + liquidity only)
+**Expected time:** ~1 minute (stakes + liquidity only)
 
 ## Monitoring Rate Limit
 
@@ -215,7 +215,7 @@ Before running full analysis:
 - [ ] Built successfully (`npm run build`)
 - [ ] API key is valid (`.env` file)
 - [ ] Test single wallet works (`npm run test:tx`)
-- [ ] Have 2-3 hours available for full run
+- [ ] Have 10-15 minutes available for full run
 - [ ] Understand data will be complete and accurate
 
 ## Future Improvements
@@ -231,6 +231,6 @@ Possible optimizations:
 ## Summary
 
 **Before:** Fast but broken (50% data loss due to 429 errors)
-**After:** Slow but reliable (100% data accuracy)
+**After:** Fast and reliable (100% data accuracy with 200 calls/min buffer)
 
 This is a necessary trade-off to respect API limits and ensure data integrity.

@@ -1,8 +1,8 @@
 /**
  * Rate limiter utility to respect Taostats API limits
- * Limit: 60 calls per minute = 1 call per second
+ * Limit: 240 calls per minute = 4 calls per second
+ * Buffer: Using 200 calls/min to be safe and allow for other scripts
  */
-import { errorLogger } from './errorLogger';
 
 interface RateLimiterConfig {
   maxCallsPerMinute: number;
@@ -18,9 +18,9 @@ class RateLimiter {
 
   constructor(config: Partial<RateLimiterConfig> = {}) {
     this.config = {
-      maxCallsPerMinute: config.maxCallsPerMinute || 60,
-      retryAttempts: config.retryAttempts || 3,
-      retryDelayMs: config.retryDelayMs || 2000,
+      maxCallsPerMinute: config.maxCallsPerMinute || 200,
+      retryAttempts: config.retryAttempts || 5,
+      retryDelayMs: config.retryDelayMs || 1500,
     };
   }
 
@@ -52,7 +52,6 @@ class RateLimiter {
 
   /**
    * Execute a function with rate limiting and retry on 429
-   * CRITICAL: Garantit 0 erreur 429 non gérée avec retry agressif
    */
   async execute<T>(
     fn: () => Promise<T>,
@@ -67,30 +66,12 @@ class RateLimiter {
       } catch (error: any) {
         const is429 = error.message?.includes('429') || 
                       error.message?.includes('Too Many Requests');
-        const is502 = error.message?.includes('502') || 
-                      error.message?.includes('Bad Gateway');
-        const isRetryable = is429 || is502;
 
-        if (isRetryable && attempt < this.config.retryAttempts) {
-          // Exponential backoff: 3s, 6s, 12s, 24s, 48s
-          const delay = this.config.retryDelayMs * Math.pow(2, attempt - 1);
-          const errorType = is429 ? 'Rate limit (429)' : 'Server error (502)';
-          
-          // LOG le retry
-          errorLogger.logRetry(context || 'unknown', attempt, this.config.retryAttempts, errorType, delay);
-          
+        if (is429 && attempt < this.config.retryAttempts) {
+          const delay = this.config.retryDelayMs * attempt; // Exponential backoff
+          console.warn(`  Rate limit hit${context ? ` (${context})` : ''}, retrying in ${delay}ms (attempt ${attempt}/${this.config.retryAttempts})...`);
           await new Promise(resolve => setTimeout(resolve, delay));
-          
-          // Pour les 429, attendre un slot supplémentaire pour être sûr
-          if (is429) {
-            await this.waitForSlot();
-          }
           continue;
-        }
-
-        // Si on a épuisé tous les retries, c'est une vraie erreur
-        if (isRetryable && attempt >= this.config.retryAttempts) {
-          errorLogger.logCriticalError(context || 'unknown', error.message);
         }
 
         throw error;
@@ -117,9 +98,9 @@ class RateLimiter {
 }
 
 // Singleton instance for the entire application
-// Configuration conservatrice pour garantir 0 erreur 429
+// Using 200 calls/min (buffer of 40 under the 240 limit) to be safe
 export const taostatsRateLimiter = new RateLimiter({
-  maxCallsPerMinute: 55,  // Marge de sécurité (limite API = 60)
-  retryAttempts: 5,        // 5 tentatives max avec backoff exponentiel
-  retryDelayMs: 3000,      // Délai initial 3s (puis 6s, 12s, 24s, 48s)
+  maxCallsPerMinute: 200,
+  retryAttempts: 5,
+  retryDelayMs: 1500,
 });

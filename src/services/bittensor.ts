@@ -12,7 +12,7 @@ export async function connectToChain(endpoint?: string): Promise<ApiPromise> {
     return api;
   }
 
-  const wsEndpoint = endpoint || BITTENSOR_CONFIG.WEB_SOCKET_ARCHIVE_MENTATMINDS_FALLBACK;
+  const wsEndpoint = endpoint || BITTENSOR_CONFIG.WEB_SOCKET_ARCHIVE_MENTATMINDS;
   console.log(`Connecting to Bittensor chain at ${wsEndpoint}...`);
 
   // Configure provider with better error handling

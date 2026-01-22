@@ -1,0 +1,255 @@
+
+==========================================================================================
+COLDKEY #1: 5EtSftWwrzJKUooqDjtoCyxnTbURewBmsmpgweTWEGGCom8T
+==========================================================================================
+
+👤 RÔLES: Investor
+
+💰 FINANCES:
+   Total Alpha (TAO):     4.22
+   Total Staked TAO:      212.34
+   Free TAO:              2.03
+   Total Wallet (TAO):    218.59
+   Alpha %:               1.93%
+
+📊 ACTIVITÉ:
+   Unique Alpha Tokens:   1
+   Nombre TX (50j):       0
+   Staking Proxy:         ❌ No
+
+🪙 ALPHA HOLDINGS (1 subnets):
+    1. Subnet  62 (subnet-62   ) |         4.22 TAO |        91.56 alpha |  1.93% wallet
+
+🔗 TAOSTATS: https://taostats.io/account/5EtSftWwrzJKUooqDjtoCyxnTbURewBmsmpgweTWEGGCom8T
+
+==========================================================================================
+COLDKEY #2: 5DcFQkc78rqTtXSj31VTxxfHiQhtiQLazCEkabdap1WU8k29
+==========================================================================================
+
+👤 RÔLES: Investor
+
+💰 FINANCES:
+   Total Alpha (TAO):     0.19
+   Total Staked TAO:      0.00
+   Free TAO:              3.01
+   Total Wallet (TAO):    3.20
+   Alpha %:               6.00%
+
+📊 ACTIVITÉ:
+   Unique Alpha Tokens:   1
+   Nombre TX (50j):       6
+   Staking Proxy:         ❌ No
+
+🪙 ALPHA HOLDINGS (1 subnets):
+    1. Subnet  50 (subnet-50   ) |         0.19 TAO |        16.78 alpha |  6.00% wallet
+
+🔗 TAOSTATS: https://taostats.io/account/5DcFQkc78rqTtXSj31VTxxfHiQhtiQLazCEkabdap1WU8k29
+
+==========================================================================================
+COLDKEY #3: 5F6hpX2asshRhv3FPjwwnVmffqrbA6BK5HhsrybVYfn328MF
+==========================================================================================
+
+👤 RÔLES: Validator
+
+💰 FINANCES:
+   Total Alpha (TAO):     137.59
+   Total Staked TAO:      0.00
+   Free TAO:              0.00
+   Total Wallet (TAO):    137.59
+   Alpha %:               100.00%
+
+📊 ACTIVITÉ:
+   Unique Alpha Tokens:   1
+   Nombre TX (50j):       0
+   Staking Proxy:         ❌ No
+
+🪙 ALPHA HOLDINGS (1 subnets):
+    1. Subnet 115 (subnet-115  ) |       137.59 TAO |    17,739.69 alpha | 100.00% wallet
+
+🔗 TAOSTATS: https://taostats.io/account/5F6hpX2asshRhv3FPjwwnVmffqrbA6BK5HhsrybVYfn328MF
+
+==========================================================================================
+COLDKEY #4: 5GdZfyGDS8X2ne4UucJHy3ftj5gTuhNGcj9FAbeD6MeXffmB
+==========================================================================================
+
+👤 RÔLES: Investor
+
+💰 FINANCES:
+   Total Alpha (TAO):     9.56
+   Total Staked TAO:      0.00
+   Free TAO:              0.05
+   Total Wallet (TAO):    9.61
+   Alpha %:               99.48%
+
+📊 ACTIVITÉ:
+   Unique Alpha Tokens:   2
+   Nombre TX (50j):       14
+   Staking Proxy:         ❌ No
+
+🪙 ALPHA HOLDINGS (2 subnets):
+    1. Subnet 120 (subnet-120  ) |         5.58 TAO |        86.54 alpha | 58.03% wallet
+    2. Subnet  62 (subnet-62   ) |         3.98 TAO |        86.47 alpha | 41.45% wallet
+
+🔗 TAOSTATS: https://taostats.io/account/5GdZfyGDS8X2ne4UucJHy3ftj5gTuhNGcj9FAbeD6MeXffmB
+
+==========================================================================================
+COLDKEY #5: 5G8urHVedtbJr85DQGQ1For6FA5ax27T2KfBbRdfr6jCo9mM
+==========================================================================================
+
+👤 RÔLES: Validator
+
+💰 FINANCES:
+   Total Alpha (TAO):     112.35
+   Total Staked TAO:      0.00
+   Free TAO:              0.10
+   Total Wallet (TAO):    112.45
+   Alpha %:               99.91%
+
+📊 ACTIVITÉ:
+   Unique Alpha Tokens:   1
+   Nombre TX (50j):       0
+   Staking Proxy:         ❌ No
+
+🪙 ALPHA HOLDINGS (1 subnets):
+    1. Subnet  48 (subnet-48   ) |       112.35 TAO |    10,485.36 alpha | 99.91% wallet
+
+🔗 TAOSTATS: https://taostats.io/account/5G8urHVedtbJr85DQGQ1For6FA5ax27T2KfBbRdfr6jCo9mM
+
+==========================================================================================
+COLDKEY #6: 5GzXnizXntJnUJA2RThqtzMivjX2s4atGSoE3qPtyTtcAoHR
+==========================================================================================
+
+👤 RÔLES: Investor
+
+💰 FINANCES:
+   Total Alpha (TAO):     148.18
+   Total Staked TAO:      0.00
+   Free TAO:              0.03
+   Total Wallet (TAO):    148.21
+   Alpha %:               99.98%
+
+📊 ACTIVITÉ:
+   Unique Alpha Tokens:   8
+   Nombre TX (50j):       111
+   Staking Proxy:         ❌ No
+
+🪙 ALPHA HOLDINGS (8 subnets):
+    1. Subnet  18 (sigma       ) |        36.89 TAO |     4,478.44 alpha | 24.89% wallet
+    2. Subnet  27 (subnet-27   ) |        22.92 TAO |     6,674.00 alpha | 15.46% wallet
+    3. Subnet  66 (subnet-66   ) |        22.77 TAO |     6,407.81 alpha | 15.36% wallet
+    4. Subnet   6 (zeta        ) |        17.55 TAO |     2,604.63 alpha | 11.84% wallet
+    5. Subnet  45 (subnet-45   ) |        17.51 TAO |     3,226.82 alpha | 11.81% wallet
+    6. Subnet  36 (subnet-36   ) |        17.03 TAO |     5,240.19 alpha | 11.49% wallet
+    7. Subnet  69 (subnet-69   ) |         8.46 TAO |     2,947.91 alpha |  5.71% wallet
+    8. Subnet  99 (subnet-99   ) |         5.05 TAO |     1,898.00 alpha |  3.41% wallet
+
+🔗 TAOSTATS: https://taostats.io/account/5GzXnizXntJnUJA2RThqtzMivjX2s4atGSoE3qPtyTtcAoHR
+
+==========================================================================================
+COLDKEY #7: 5CkVVztC8Hbv7hpdC7QZDs3in9FsXSmYQ4hstPDDAg7HwyFr
+==========================================================================================
+
+👤 RÔLES: Investor
+
+💰 FINANCES:
+   Total Alpha (TAO):     222.54
+   Total Staked TAO:      0.00
+   Free TAO:              0.01
+   Total Wallet (TAO):    222.55
+   Alpha %:               100.00%
+
+📊 ACTIVITÉ:
+   Unique Alpha Tokens:   6
+   Nombre TX (50j):       45
+   Staking Proxy:         ❌ No
+
+🪙 ALPHA HOLDINGS (6 subnets):
+    1. Subnet  46 (subnet-46   ) |        56.11 TAO |     9,667.12 alpha | 25.21% wallet
+    2. Subnet  62 (subnet-62   ) |        49.11 TAO |     1,065.77 alpha | 22.07% wallet
+    3. Subnet  85 (subnet-85   ) |        36.26 TAO |     3,454.77 alpha | 16.29% wallet
+    4. Subnet  66 (subnet-66   ) |        31.07 TAO |     8,744.20 alpha | 13.96% wallet
+    5. Subnet  54 (subnet-54   ) |        26.68 TAO |     7,078.45 alpha | 11.99% wallet
+    6. Subnet  35 (subnet-35   ) |        23.32 TAO |     2,280.00 alpha | 10.48% wallet
+
+🔗 TAOSTATS: https://taostats.io/account/5CkVVztC8Hbv7hpdC7QZDs3in9FsXSmYQ4hstPDDAg7HwyFr
+
+==========================================================================================
+COLDKEY #8: 5DnTiw8dB9PYiGbiU5rB1f7ZTPrCqSLLTrRb687fJfyetFdL
+==========================================================================================
+
+👤 RÔLES: Investor
+
+💰 FINANCES:
+   Total Alpha (TAO):     332.39
+   Total Staked TAO:      0.00
+   Free TAO:              0.14
+   Total Wallet (TAO):    332.53
+   Alpha %:               99.96%
+
+📊 ACTIVITÉ:
+   Unique Alpha Tokens:   1
+   Nombre TX (50j):       1
+   Staking Proxy:         ❌ No
+
+🪙 ALPHA HOLDINGS (1 subnets):
+    1. Subnet  50 (subnet-50   ) |       332.39 TAO |    29,005.27 alpha | 99.96% wallet
+
+🔗 TAOSTATS: https://taostats.io/account/5DnTiw8dB9PYiGbiU5rB1f7ZTPrCqSLLTrRb687fJfyetFdL
+
+==========================================================================================
+COLDKEY #9: 5F7giPFKJgsnC1AZXs72BqtbndmvPSu7N3ZD3fjXfFd328ZM
+==========================================================================================
+
+👤 RÔLES: Investor
+
+💰 FINANCES:
+   Total Alpha (TAO):     1,542.10
+   Total Staked TAO:      239.16
+   Free TAO:              0.00
+   Total Wallet (TAO):    1,781.27
+   Alpha %:               86.57%
+
+📊 ACTIVITÉ:
+   Unique Alpha Tokens:   8
+   Nombre TX (50j):       64
+   Staking Proxy:         ❌ No
+
+🪙 ALPHA HOLDINGS (8 subnets):
+    1. Subnet   9 (iota        ) |       620.59 TAO |    26,322.69 alpha | 34.84% wallet
+    2. Subnet  62 (subnet-62   ) |       279.88 TAO |     6,073.68 alpha | 15.71% wallet
+    3. Subnet  50 (subnet-50   ) |       236.36 TAO |    20,625.33 alpha | 13.27% wallet
+    4. Subnet  75 (subnet-75   ) |       166.60 TAO |    10,219.91 alpha |  9.35% wallet
+    5. Subnet  12 (mu          ) |       115.38 TAO |    20,013.56 alpha |  6.48% wallet
+    6. Subnet  11 (lambda      ) |        80.73 TAO |    10,536.02 alpha |  4.53% wallet
+    7. Subnet  85 (subnet-85   ) |        32.31 TAO |     3,078.66 alpha |  1.81% wallet
+    8. Subnet 120 (subnet-120  ) |        10.26 TAO |       159.21 alpha |  0.58% wallet
+
+🔗 TAOSTATS: https://taostats.io/account/5F7giPFKJgsnC1AZXs72BqtbndmvPSu7N3ZD3fjXfFd328ZM
+
+==========================================================================================
+COLDKEY #10: 5FbvQe5iJNmnxwQth7HgD5oz2jVbzsVazWTamW4wJ2Jr4bBz
+==========================================================================================
+
+👤 RÔLES: Investor
+
+💰 FINANCES:
+   Total Alpha (TAO):     17.51
+   Total Staked TAO:      0.00
+   Free TAO:              0.01
+   Total Wallet (TAO):    17.52
+   Alpha %:               99.97%
+
+📊 ACTIVITÉ:
+   Unique Alpha Tokens:   4
+   Nombre TX (50j):       3
+   Staking Proxy:         ❌ No
+
+🪙 ALPHA HOLDINGS (4 subnets):
+    1. Subnet  93 (subnet-93   ) |         7.87 TAO |       619.83 alpha | 44.92% wallet
+    2. Subnet  51 (subnet-51   ) |         3.56 TAO |        64.09 alpha | 20.33% wallet
+    3. Subnet  64 (subnet-64   ) |         3.09 TAO |        37.34 alpha | 17.64% wallet
+    4. Subnet  62 (subnet-62   ) |         2.99 TAO |        64.91 alpha | 17.07% wallet
+
+🔗 TAOSTATS: https://taostats.io/account/5FbvQe5iJNmnxwQth7HgD5oz2jVbzsVazWTamW4wJ2Jr4bBz
+
+==========================================================================================
