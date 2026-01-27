@@ -90,6 +90,10 @@ def filter_data_by_wallet_value(data: List[Dict], min_value: float, max_value: f
     """Filter data by total wallet value in TAO"""
     return [h for h in data if min_value <= h.get('total_wallet_value_tao', 0) <= max_value]
 
+def filter_data_by_token_count(data: List[Dict], min_tokens: int, max_tokens: int) -> List[Dict]:
+    """Filter data by number of unique alpha tokens held"""
+    return [h for h in data if min_tokens <= h.get('unique_alpha_tokens', 0) <= max_tokens]
+
 def apply_chart_theme(fig):
     """Apply consistent theme to plotly charts"""
     fig.update_layout(
@@ -275,22 +279,18 @@ def create_breakdown_by_tx(data: List[Dict]):
         st.plotly_chart(fig, use_container_width=True)
 
 def create_breakdown_by_tx_time(data: List[Dict]):
-    """Create breakdown by number of transaction sessions (tx_time) (10 categories)"""
+    """Create breakdown by number of transaction sessions (tx_time) (7 categories)"""
     st.markdown("<h2>⏰ Breakdown by Transaction Sessions (tx_time)</h2>", unsafe_allow_html=True)
     
-    # Define TX sessions categories (same as number_tx)
+    # Define TX sessions categories
     categories = [
         ('0', 0, 0),
         ('1-5', 1, 5),
-        ('6-10', 6, 10),
-        ('11-20', 11, 20),
-        ('21-30', 21, 30),
-        ('31-50', 31, 50),
-        ('51-75', 51, 75),
-        ('76-100', 76, 100),
-        ('101-200', 101, 200),
-        ('201-500', 201, 500),
-        ('500+', 501, float('inf'))
+        ('5-12', 5, 12),
+        ('12-25', 12, 25),
+        ('25-50', 25, 50),
+        ('50-100', 50, 100),
+        ('100+', 100, float('inf'))
     ]
     
     # Aggregate stats
@@ -348,6 +348,77 @@ def create_breakdown_by_tx_time(data: List[Dict]):
         )
         fig.update_traces(
             hovertemplate='%{x}<br>%{y:.0f} Coldkeys<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Detailed breakdown for sessions 1-5
+    st.markdown("<h3>📊 Detailed Breakdown: Sessions 1-5</h3>", unsafe_allow_html=True)
+    
+    detailed_categories = [
+        ('1', 1, 1),
+        ('2', 2, 2),
+        ('3', 3, 3),
+        ('4', 4, 4),
+        ('5', 5, 5)
+    ]
+    
+    detailed_stats = []
+    for cat_name, min_s, max_s in detailed_categories:
+        holders = [h for h in data if min_s <= h.get('tx_time', 0) <= max_s]
+        total_alpha = sum(h['total_alpha_value_tao'] for h in holders)
+        detailed_stats.append({
+            'Sessions': cat_name,
+            'Coldkeys': len(holders),
+            'Total Alpha (TAO)': total_alpha
+        })
+    
+    df_detailed = pd.DataFrame(detailed_stats)
+    
+    # Calculate percentages
+    total_alpha_detailed = df_detailed['Total Alpha (TAO)'].sum()
+    total_coldkeys_detailed = df_detailed['Coldkeys'].sum()
+    df_detailed['Pct_Alpha'] = (df_detailed['Total Alpha (TAO)'] / total_alpha_detailed * 100).round(1)
+    df_detailed['Pct_Coldkeys'] = (df_detailed['Coldkeys'] / total_coldkeys_detailed * 100).round(1)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        fig = px.bar(
+            df_detailed,
+            x='Sessions',
+            y='Total Alpha (TAO)',
+            title='Alpha Value by Sessions (0-5)',
+            color='Total Alpha (TAO)',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            text='Pct_Alpha'
+        )
+        fig.update_traces(
+            hovertemplate='Sessions: %{x}<br>%{y:.1f} TAO<extra></extra>',
+            texttemplate='%{text:.1f}%',
+            textposition='outside'
+        )
+        fig.update_coloraxes(showscale=False)
+        fig.update_xaxes(title_text='')
+        fig = apply_chart_theme(fig)
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        fig = px.bar(
+            df_detailed,
+            x='Sessions',
+            y='Coldkeys',
+            title='Number of Coldkeys by Sessions (0-5)',
+            color='Coldkeys',
+            color_continuous_scale=[[0, '#E8EAFF'], [0.5, '#868BFF'], [1, '#282AE6']],
+            text='Pct_Coldkeys'
+        )
+        fig.update_traces(
+            hovertemplate='Sessions: %{x}<br>%{y:.0f} Coldkeys<extra></extra>',
             texttemplate='%{text:.1f}%',
             textposition='outside'
         )
@@ -922,6 +993,36 @@ def main():
     
     value_range = (min_value_input, max_value_input)
     
+    # Filter by number of tokens held
+    st.sidebar.divider()
+    st.sidebar.markdown("**🎯 Filter by Number of Tokens Held**")
+    
+    # Get min and max token counts
+    token_counts = [h.get('unique_alpha_tokens', 0) for h in data]
+    min_token_count = max(1, min(token_counts))  # Minimum is 1, not 0
+    max_token_count = max(token_counts)
+    
+    # Number inputs for token count range
+    col1, col2 = st.sidebar.columns(2)
+    with col1:
+        min_tokens_input = st.number_input(
+            "Min Tokens",
+            min_value=1,
+            max_value=int(max_token_count),
+            value=1,
+            step=1
+        )
+    with col2:
+        max_tokens_input = st.number_input(
+            "Max Tokens",
+            min_value=1,
+            max_value=int(max_token_count),
+            value=int(max_token_count),
+            step=1
+        )
+    
+    token_range = (min_tokens_input, max_tokens_input)
+    
     st.sidebar.divider()
     st.sidebar.info("Filters apply to all sections EXCEPT 'Global Analysis by Role'")
     
@@ -935,7 +1036,7 @@ def main():
     # ============ APPLY FILTERS FOR ALL FOLLOWING SECTIONS ============
     st.markdown("---")
     st.markdown("## 📍 Section 2+: Filtered Analysis")
-    st.warning(f"🔍 Filters Active: Role = {role_filter} | Staking Proxy = {proxy_filter} | Wallet Value = {value_range[0]:.0f}-{value_range[1]:.0f} TAO")
+    st.warning(f"🔍 Filters Active: Role = {role_filter} | Staking Proxy = {proxy_filter} | Wallet Value = {value_range[0]:.0f}-{value_range[1]:.0f} TAO | Tokens = {token_range[0]}-{token_range[1]}")
     
     # Apply role filter
     filtered_data = filter_data_by_role(data, role_filter)
@@ -945,6 +1046,9 @@ def main():
     
     # Apply wallet value filter
     filtered_data = filter_data_by_wallet_value(filtered_data, value_range[0], value_range[1])
+    
+    # Apply token count filter
+    filtered_data = filter_data_by_token_count(filtered_data, token_range[0], token_range[1])
     
     st.info(f"Showing {len(filtered_data):,} / {len(data):,} holders after filtering")
     
